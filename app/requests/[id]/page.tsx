@@ -399,74 +399,76 @@ export default function RequestDetailPage() {
           </div>
 
           {/* SECTION ②: COMPACT STICKY ACTION BAR */}
-          <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-[#E5E7EB] dark:border-slate-800 rounded-xl p-2.5 shadow-sm flex items-center justify-between flex-wrap gap-3 transition-all">
+          <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-[#E5E7EB] dark:border-slate-800 rounded-xl p-2 sm:p-2.5 shadow-sm flex items-center justify-between flex-wrap gap-2 sm:gap-3 transition-all">
             
             {/* Left Actions: Export & Share Toolbar */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <button
                 type="button"
                 onClick={() => alert('PNG download initiated')}
-                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+                className="h-9 sm:h-10 px-2.5 sm:px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs active:scale-95"
               >
-                <Download className="w-4 h-4 text-slate-500" />
-                <span>Download PNG</span>
+                <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
+                <span className="hidden sm:inline">Download PNG</span>
+                <span className="inline sm:hidden">PNG</span>
               </button>
 
               <button
                 type="button"
                 onClick={handlePrint}
-                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                className="h-9 sm:h-10 px-3 sm:px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs active:scale-95 cursor-pointer"
               >
-                <Printer className="w-4 h-4 text-slate-500" />
+                <Printer className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
                 <span>{language === 'kh' ? 'បោះពុម្ពបញ្ជីទិញ' : 'Print Market List'}</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleShareTelegram}
-                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+                className="h-9 sm:h-10 px-2.5 sm:px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs active:scale-95"
               >
-                <Send className="w-4 h-4 text-sky-500" />
+                <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-500" />
                 <span className="hidden sm:inline">Telegram</span>
               </button>
 
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+                className="h-9 sm:h-10 px-2.5 sm:px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs active:scale-95"
               >
-                {copied ? <Check className="w-4 h-4 text-[#0A8F4D]" /> : <Copy className="w-4 h-4 text-slate-500" />}
+                {copied ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0A8F4D]" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />}
                 <span>{copied ? 'Copied!' : 'Copy Link'}</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => alert('Edit order mode enabled')}
-                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+                className="h-9 sm:h-10 px-2.5 sm:px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs active:scale-95"
               >
-                <FileEdit className="w-4 h-4 text-slate-500" />
-                <span>Edit Order</span>
+                <FileEdit className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500" />
+                <span className="hidden sm:inline">Edit Order</span>
+                <span className="inline sm:hidden">Edit</span>
               </button>
             </div>
 
             {/* Right Actions: Manager Authorization (When Pending) */}
             {order.status === 'pending' && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-end border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={handleReject}
-                  className="h-10 px-4 bg-white dark:bg-slate-800 border border-[#EF4444] text-[#EF4444] hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all active:scale-95"
+                  className="h-9 sm:h-10 px-3 sm:px-4 bg-white dark:bg-slate-800 border border-[#EF4444] text-[#EF4444] hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-1.5 transition-all active:scale-95"
                 >
-                  <XCircle className="w-4 h-4" />
+                  <XCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>{language === 'kh' ? 'បដិសេធ' : 'Reject Order'}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleApprove}
-                  className="h-10 px-5 bg-[#0A8F4D] hover:bg-[#08733E] text-white rounded-lg text-sm font-medium flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                  className="h-9 sm:h-10 px-3.5 sm:px-5 bg-[#0A8F4D] hover:bg-[#08733E] text-white rounded-lg text-xs sm:text-sm font-medium flex items-center gap-1 sm:gap-1.5 shadow-sm transition-all active:scale-95"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span>{language === 'kh' ? 'អនុម័តវិក្កយបត្រ' : 'Approve Order'}</span>
                 </button>
               </div>
@@ -480,9 +482,9 @@ export default function RequestDetailPage() {
             <div className="lg:col-span-3 space-y-6">
               
               {/* SECTION ③: PURCHASE ORDER HEADER ROW */}
-              <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-xl px-6 py-4 shadow-2xs flex flex-wrap items-center justify-between gap-6 text-sm">
+              <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-xl px-4 sm:px-6 py-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-6 text-sm">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#0A8F4D]/10 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-lg bg-[#0A8F4D]/10 flex items-center justify-center flex-shrink-0">
                     <Store className="w-5 h-5 text-[#0A8F4D]" />
                   </div>
                   <div>
@@ -491,7 +493,7 @@ export default function RequestDetailPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-6 flex-wrap text-[13px] text-slate-600 dark:text-slate-300">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 sm:gap-6 w-full sm:w-auto text-[13px] text-slate-600 dark:text-slate-300 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 dark:border-slate-800">
                   <div>
                     <span className="text-slate-400 block text-[11px] uppercase font-semibold">Document</span>
                     <span className="font-semibold text-slate-900 dark:text-white">Purchase Order / វិក្កយបត្រ</span>
@@ -514,7 +516,8 @@ export default function RequestDetailPage() {
               {/* SECTION ④: INGREDIENT TABLE OR DELIVERY CHECK-IN */}
               {activeTab === 'po' ? (
                 <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
-                  <div className="overflow-x-auto">
+                  {/* DESKTOP TABLE VIEW (hidden on mobile, visible md and up) */}
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full min-w-[950px] text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50 dark:bg-slate-900/90 border-b border-[#E5E7EB] dark:border-slate-800 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -616,8 +619,107 @@ export default function RequestDetailPage() {
                     </table>
                   </div>
 
-                  {/* Table Footer */}
-                  <div className="bg-slate-50 dark:bg-slate-900/60 px-6 py-4 border-t border-[#E5E7EB] dark:border-slate-800 flex items-center justify-between text-sm text-slate-500">
+                  {/* MOBILE CARD LIST VIEW (visible on mobile < md, hidden on desktop) */}
+                  <div className="block md:hidden divide-y divide-[#E5E7EB] dark:divide-slate-800">
+                    {/* Mobile Select All Header */}
+                    <div className="p-3.5 bg-slate-50 dark:bg-slate-900/90 flex items-center justify-between text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.size === order.items.length && order.items.length > 0}
+                          onChange={toggleSelectAll}
+                          className="w-4 h-4 text-[#0A8F4D] rounded border-[#E5E7EB] focus:ring-[#0A8F4D]"
+                        />
+                        <span>Select All ({order.items.length})</span>
+                      </label>
+                      <span className="text-xs font-medium text-[#0A8F4D] bg-[#0A8F4D]/10 px-2.5 py-0.5 rounded-full">
+                        {selectedItems.size} selected
+                      </span>
+                    </div>
+
+                    {/* Mobile Item Cards */}
+                    {order.items.map((item) => {
+                      const isSelected = selectedItems.has(item.id);
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 transition-all ${
+                            isSelected ? 'bg-[#0A8F4D]/5 dark:bg-[#0A8F4D]/10 border-l-4 border-[#0A8F4D]' : ''
+                          }`}
+                        >
+                          {/* Top Row: Checkbox, Icon, Title, and Status Badge */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSelectItem(item.id)}
+                                className="w-4 h-4 mt-1 text-[#0A8F4D] rounded border-[#E5E7EB] focus:ring-[#0A8F4D] flex-shrink-0"
+                              />
+                              <div className="w-10 h-10 rounded-xl bg-[#0A8F4D]/10 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 shadow-inner">
+                                {renderIngredientIcon(item.icon || 'Package', "w-5 h-5 text-[#0A8F4D]")}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 dark:text-white text-base leading-snug break-words">
+                                  {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                </p>
+                                {item.nameKh && (
+                                  <p className="text-xs text-slate-500 font-normal leading-snug break-words mt-0.5">
+                                    {language === 'kh' ? item.nameEn : item.nameKh}
+                                  </p>
+                                )}
+                                <span className="inline-block mt-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] rounded font-medium">
+                                  {item.category || 'General Procurement'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex-shrink-0">
+                              {item.packingStatus === 'packed' || order.status === 'completed' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20">
+                                  <CheckCircle2 className="w-3 h-3 stroke-[2.5]" />
+                                  <span>Packed</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                  <Clock className="w-3 h-3" />
+                                  <span>Pending</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Stats Grid: Qty, Unit, Estimated Price */}
+                          <div className="mt-3.5 grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/60 text-xs">
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase font-bold">Qty / ចំនួន</span>
+                              <span className="font-bold text-slate-900 dark:text-white text-sm">{item.ordered}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[10px] uppercase font-bold">Unit / ឯកតា</span>
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 text-sm">{item.unit.split('(')[0].trim()}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-slate-400 block text-[10px] uppercase font-bold">Est. Price / តម្លៃ</span>
+                              <span className="font-bold text-[#0A8F4D] text-sm">
+                                ${item.estimatedPrice ? (item.estimatedPrice * item.ordered).toFixed(2) : '0.00'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Supplier Notes */}
+                          <div className="mt-2.5 text-xs text-slate-500 italic flex items-start gap-1.5 bg-amber-50/70 dark:bg-amber-950/20 p-2.5 rounded-lg border border-amber-200/60 dark:border-amber-900/40">
+                            <span className="font-semibold text-amber-800 dark:text-amber-400 not-italic flex-shrink-0">Notes:</span>
+                            <span className="text-amber-900 dark:text-amber-300 break-words">{item.supplierNotes || 'Standard market grade, clean pack'}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Table & Mobile Footer */}
+                  <div className="bg-slate-50 dark:bg-slate-900/60 px-4 sm:px-6 py-3.5 sm:py-4 border-t border-[#E5E7EB] dark:border-slate-800 flex items-center justify-between text-xs sm:text-sm text-slate-500">
                     <span>Showing <strong className="text-slate-900 dark:text-white font-semibold">{order.items.length}</strong> procurement items</span>
                     <span>Selected: <strong className="text-[#0A8F4D] font-semibold">{selectedItems.size}</strong> items</span>
                   </div>
