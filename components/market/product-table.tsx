@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { AlertCircle } from 'lucide-react';
-import type { IngredientItem } from '@/app/requests/new/page';
+import type { IngredientItem } from '@/types/market';
 
 export interface ProductTableProps {
   items: IngredientItem[];
@@ -74,7 +74,7 @@ export function ProductTable({
         header: () => <span className="font-extrabold text-xs tracking-wider uppercase text-slate-700">Ingredient Name / ឈ្មោះទំនិញ</span>,
         cell: ({ row }) => {
           const item = row.original;
-          const { nameEn, nameKh } = splitBilingualName(item.name);
+          const { nameEn, nameKh } = splitBilingualName(item.name || item.nameEn || '');
           return (
             <div className="flex flex-col py-0.5">
               <span className="font-bold text-sm text-slate-900 tracking-tight leading-snug">
@@ -94,13 +94,13 @@ export function ProductTable({
         header: () => <span className="font-extrabold text-xs tracking-wider uppercase text-slate-700">Unit</span>,
         cell: ({ row }) => {
           const item = row.original;
-          const currentUnit = customUnits[item.id] || item.unit;
+          const currentUnit = customUnits[item.id] || item.unit || item.defaultUnit || '';
           return (
             <input
               type="text"
               value={currentUnit}
               onChange={(e) => onUnitChange(item, e.target.value)}
-              className="w-16 px-2 py-1 text-xs font-bold text-center bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 text-slate-800 shadow-2xs transition-all"
+              className="w-16 px-2 py-1 text-xs font-bold text-center bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-slate-800 shadow-2xs transition-all"
               title="Type or edit unit"
             />
           );
@@ -133,8 +133,8 @@ export function ProductTable({
                 data-row-index={rowIndex}
                 className={`w-20 h-8 text-center font-black text-sm transition-all shadow-2xs ${
                   currentQty > 0
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-1 ring-emerald-500/30 font-black'
-                    : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 focus:border-emerald-600'
+                    ? 'bg-primary/15 border-primary text-primary-hover dark:text-primary ring-1 ring-primary/30 font-black'
+                    : 'bg-white border-slate-200 text-slate-800 hover:border-slate-300 focus:border-primary'
                 }`}
               />
             </div>
@@ -179,7 +179,7 @@ export function ProductTable({
                   key={row.id}
                   data-state={isSelected ? 'selected' : undefined}
                   className={`transition-colors [&_td]:py-1.5 [&_td]:px-4 border-b border-slate-100 last:border-0 ${
-                    isSelected ? 'bg-emerald-50/40 hover:bg-emerald-50/60' : 'hover:bg-slate-50/80'
+                    isSelected ? 'bg-primary/10 hover:bg-primary/15' : 'hover:bg-slate-50/80'
                   }`}
                 >
                   {row.getVisibleCells().map((cell) => (

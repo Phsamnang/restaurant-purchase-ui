@@ -34,6 +34,8 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
@@ -55,7 +57,9 @@
   /* B2B Restaurant Dashboard Color Hierarchy Tokens */
   --color-bg-main: #F9FAFB;
   --color-surface: #FFFFFF;
-  --color-primary: #059669;
+  --color-primary: #FFC700;
+  --color-primary-hover: #232D4B;
+  --color-primary-active: #0F172A;
   --color-text-primary: #111827;
   --color-text-secondary: #4B5563;
   --color-border: #E5E7EB;
@@ -67,7 +71,9 @@
   --popover: var(--color-surface);
   --popover-foreground: var(--color-text-primary);
   --primary: var(--color-primary);
-  --primary-foreground: #FFFFFF;
+  --primary-foreground: #1E293B;
+  --primary-hover: var(--color-primary-hover);
+  --primary-active: var(--color-primary-active);
   --secondary: #F3F4F6;
   --secondary-foreground: var(--color-text-primary);
   --muted: #F3F4F6;
@@ -87,7 +93,7 @@
   --sidebar: var(--color-bg-main);
   --sidebar-foreground: var(--color-text-primary);
   --sidebar-primary: var(--color-primary);
-  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-primary-foreground: #1E293B;
   --sidebar-accent: #F3F4F6;
   --sidebar-accent-foreground: var(--color-text-primary);
   --sidebar-border: var(--color-border);
@@ -102,8 +108,10 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #059669;
-  --primary-foreground: #FFFFFF;
+  --primary: #FFC700;
+  --primary-foreground: #1E293B;
+  --primary-hover: #232D4B;
+  --primary-active: #0F172A;
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -113,7 +121,7 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: #059669;
+  --ring: #FFC700;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -121,12 +129,12 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #059669;
-  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-primary: #FFC700;
+  --sidebar-primary-foreground: #1E293B;
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #059669;
+  --sidebar-ring: #FFC700;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -138,8 +146,10 @@
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: #059669;
-    --primary-foreground: #FFFFFF;
+    --primary: #FFC700;
+    --primary-foreground: #1E293B;
+    --primary-hover: #232D4B;
+    --primary-active: #0F172A;
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -149,7 +159,7 @@
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: #059669;
+    --ring: #FFC700;
     --chart-1: oklch(0.87 0 0);
     --chart-2: oklch(0.556 0 0);
     --chart-3: oklch(0.439 0 0);
@@ -157,12 +167,12 @@
     --chart-5: oklch(0.269 0 0);
     --sidebar: oklch(0.205 0 0);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: #059669;
-    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-primary: #FFC700;
+    --sidebar-primary-foreground: #1E293B;
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: #059669;
+    --sidebar-ring: #FFC700;
   }
 }
 

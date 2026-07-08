@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import { AppLayout } from '@/components/app-layout';
 import { StatusBadge } from '@/components/shared/status-badge';
+import { useTranslation } from '@/lib/i18n';
+import { renderIngredientIcon } from '@/components/market/ingredient-list';
 import { getOrderById, updateOrder, OrderRequest, OrderItemDetail } from '@/lib/orders';
 import { 
   CheckCircle2, 
@@ -65,6 +67,7 @@ interface CheckInData {
 
 export default function RequestDetailPage() {
   const { user, loading } = useAuth();
+  const { t, language } = useTranslation();
   const router = useRouter();
   const params = useParams();
   
@@ -149,7 +152,7 @@ export default function RequestDetailPage() {
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false 
-      });
+      } as any);
       const link = document.createElement('a');
       link.download = `${order?.id || 'order'}-supplier-sheet.png`;
       link.href = canvas.toDataURL('image/png');
@@ -313,7 +316,7 @@ export default function RequestDetailPage() {
           </div>
           <h3 className="text-xl font-bold text-foreground">Order Not Found</h3>
           <p className="text-sm text-muted-foreground">This order reference could not be found or has been removed.</p>
-          <button onClick={() => router.push('/requests')} className="bg-[#0A8F4D] hover:bg-[#0A8F4D]/90 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">
+          <button onClick={() => router.push('/requests')} className="bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">
             Back to Orders List
           </button>
         </div>
@@ -336,7 +339,7 @@ export default function RequestDetailPage() {
             className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to Orders List / ត្រឡប់</span>
+            <span>{language === 'kh' ? 'ត្រឡប់ទៅបញ្ជីបញ្ជាទិញ' : 'Back to Orders List'}</span>
           </button>
 
           {/* Role Demo Switcher Pill */}
@@ -347,7 +350,7 @@ export default function RequestDetailPage() {
                 onClick={() => setDemoRole('manager')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   demoRole === 'manager'
-                    ? 'bg-[#0A8F4D] text-white shadow-2xs'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -358,7 +361,7 @@ export default function RequestDetailPage() {
                 onClick={() => setDemoRole('staff')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   demoRole === 'staff'
-                    ? 'bg-[#0A8F4D] text-white shadow-2xs'
+                    ? 'bg-primary text-primary-foreground shadow-2xs'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -378,64 +381,186 @@ export default function RequestDetailPage() {
             </div>
             <div className="flex items-center gap-4 text-xs sm:text-sm text-muted-foreground font-medium flex-wrap">
               <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-[#0A8F4D]" />
-                <span>Ordered: <strong className="text-foreground">{order.date}</strong></span>
+                <Calendar className="w-4 h-4 text-primary" />
+                <span>{language === 'kh' ? 'កាលបរិច្ឆេទ៖' : 'Ordered:'} <strong className="text-foreground">{order.date}</strong></span>
               </span>
               <span className="flex items-center gap-1.5">
-                <User className="w-4 h-4 text-[#0A8F4D]" />
-                <span>By: <strong className="text-foreground">{order.createdBy}</strong></span>
+                <User className="w-4 h-4 text-primary" />
+                <span>{language === 'kh' ? 'ដោយ៖' : 'By:'} <strong className="text-foreground">{order.createdBy}</strong></span>
               </span>
               {order.approvedBy && (
                 <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Approved by {order.approvedBy}</span>
+                  <span>{language === 'kh' ? `យល់ព្រមដោយ ${order.approvedBy}` : `Approved by ${order.approvedBy}`}</span>
                 </span>
               )}
             </div>
           </div>
 
           <div className="text-left sm:text-right bg-secondary/50 sm:bg-transparent p-4 sm:p-0 rounded-xl border sm:border-0 border-border/60">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">Estimated Total / តម្លៃប៉ាន់ស្មាន</p>
-            <p className="text-3xl sm:text-4xl font-black text-[#0A8F4D] mt-0.5">{order.total}</p>
-            <p className="text-[11px] text-muted-foreground font-medium mt-1">{order.items.length} unique ingredients requested</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">
+              {language === 'kh' ? 'តម្លៃប៉ាន់ស្មានសរុប' : 'Estimated Total'}
+            </p>
+            <p className="text-3xl sm:text-4xl font-black text-primary-hover dark:text-primary mt-0.5">{order.total}</p>
+            <p className="text-[11px] text-muted-foreground font-medium mt-1">
+              {order.items.length} {language === 'kh' ? 'មុខទំនិញត្រូវបានស្នើសុំ' : 'unique ingredients requested'}
+            </p>
           </div>
         </div>
 
-        {/* STAGE 1: MANAGER REVIEW BANNER (When status === 'pending') */}
-        {order.status === 'pending' && (
-          <div className="print:hidden bg-amber-500/10 border-2 border-amber-500/30 rounded-2xl p-6 shadow-sm space-y-5 animate-in fade-in duration-300">
-            <div className="flex items-start gap-3.5">
-              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex-shrink-0 mt-0.5">
-                <AlertTriangle className="w-6 h-6 stroke-[2.5]" />
+        {/* REQUESTED ITEMS DETAIL FOR MANAGER REVIEW (Visible when pending or rejected) */}
+        {(order.status === 'pending' || order.status === 'rejected') && (
+          <div className="print:hidden bg-card rounded-3xl border border-border shadow-lg p-6 sm:p-8 space-y-6 animate-in fade-in duration-300">
+            {/* Section Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-md">
+                  <PackageCheck className="w-6 h-6 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-foreground tracking-tight flex items-center gap-2">
+                    <span>{language === 'kh' ? 'បញ្ជីទំនិញដែលចុងភៅស្នើសុំ' : "Chef's Requested Market List"}</span>
+                    <span className="bg-primary/20 text-foreground text-xs px-2.5 py-0.5 rounded-full font-bold">
+                      {order.items.length} {language === 'kh' ? 'មុខទំនិញ' : 'items'}
+                    </span>
+                  </h3>
+                  <p className="font-kantumruy text-xs text-muted-foreground font-light mt-0.5">
+                    {language === 'kh'
+                      ? 'តារាងមុខទំនិញ និងចំនួនដែលចុងភៅស្នើសុំទិញផ្សារ (សូមពិនិត្យមុនពេលយល់ព្រម)'
+                      : 'Review the requested items, quantities, and units below before authorizing.'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-black text-amber-900 dark:text-amber-200">
-                  Pending Manager Review / រង់ចាំការពិនិត្យពីអ្នកគ្រប់គ្រង
-                </h3>
-                <p className="text-sm text-amber-800 dark:text-amber-300/90 font-medium mt-1 leading-relaxed">
-                  {demoRole === 'manager'
-                    ? 'As the Manager, please review the requested items and quantities below. Once approved, you or the kitchen staff can export or share the order sheet with market suppliers.'
-                    : 'This order is currently waiting for Manager approval. Switch to the "👨‍💼 Manager" demo role at the top right to test approving or rejecting this request.'}
-                </p>
+              <div className="bg-secondary/60 px-4 py-2.5 rounded-xl border border-border/60 text-right">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase block">
+                  {language === 'kh' ? 'តម្លៃប៉ាន់ស្មាន' : 'Total Estimated Cost'}
+                </span>
+                <span className="text-xl font-black text-primary-hover dark:text-primary">{order.total}</span>
               </div>
             </div>
 
-            {demoRole === 'manager' && (
-              <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-amber-500/20">
-                <button
-                  onClick={handleApprove}
-                  className="flex-1 bg-[#0A8F4D] hover:bg-[#0A8F4D]/90 text-white py-3.5 px-6 rounded-xl font-black text-sm sm:text-base transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                  <span>Approve Order / យល់ព្រមបញ្ជាទិញ</span>
-                </button>
-                <button
-                  onClick={handleReject}
-                  className="bg-red-600 hover:bg-red-700 text-white py-3.5 px-6 rounded-xl font-bold text-sm sm:text-base transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <XCircle className="w-5 h-5 stroke-[2.5]" />
-                  <span>Reject / បដិសេធ</span>
-                </button>
+            {/* Chef Remarks / Requisition Info */}
+            {order.notes ? (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-xs font-bold uppercase text-amber-800 dark:text-amber-300 block">
+                    {language === 'kh' ? 'កំណត់សម្គាល់ពីចុងភៅ' : 'Chef Submission Remarks'}
+                  </span>
+                  <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mt-0.5 leading-relaxed">
+                    {order.notes.replace('Chef Chef ', 'Chef ')}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-secondary/50 border border-border/60 flex items-center justify-between text-xs font-semibold text-muted-foreground flex-wrap gap-2">
+                <span className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span>
+                    {language === 'kh' ? 'ស្នើសុំនៅកាលបរិច្ឆេទ ' : 'Requested on '}
+                    <strong className="text-foreground">{order.date}</strong>
+                    {language === 'kh' ? ' ដោយ ' : ' by '}
+                    <strong className="text-foreground">{order.createdBy}</strong>
+                  </span>
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  ⚡ {language === 'kh' ? 'រៀបចំរួចរាល់សម្រាប់ទិញផ្សារព្រឹក' : 'Ready for Morning Market Procurement'}
+                </span>
+              </div>
+            )}
+
+            {/* Detailed Items Table */}
+            <div className="border border-border/80 rounded-2xl overflow-hidden shadow-2xs">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-secondary/80 border-b border-border/80 text-xs font-black text-muted-foreground uppercase tracking-wider">
+                    <th className="py-3.5 px-4 w-16 text-center">#</th>
+                    <th className="py-3.5 px-4">{language === 'kh' ? 'ឈ្មោះទំនិញ' : 'Ingredient Name'}</th>
+                    <th className="py-3.5 px-4 text-center">{language === 'kh' ? 'ស្ថានភាព' : 'Status'}</th>
+                    <th className="py-3.5 px-4 text-right">{language === 'kh' ? 'ចំនួនត្រូវទិញ' : 'Requested Quantity'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50 text-sm">
+                  {order.items.map((item, idx) => (
+                    <tr key={item.id || idx} className="hover:bg-secondary/40 transition-colors group">
+                      <td className="py-4 px-4 text-center">
+                        <span className="w-7 h-7 rounded-xl bg-secondary text-foreground font-black text-xs flex items-center justify-center mx-auto border border-border/80">
+                          {idx + 1}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
+                        <div className="flex items-center gap-3">
+                          <span className="p-2.5 bg-primary/10 rounded-xl border border-primary/20 flex-shrink-0 flex items-center justify-center">
+                            {renderIngredientIcon(item.icon || '', "w-6 h-6 text-primary")}
+                          </span>
+                          <div>
+                            <h4 className="font-bold text-foreground text-base group-hover:text-primary transition-colors">
+                              {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                            </h4>
+                            {item.nameKh && (
+                              <p className="font-kantumruy text-xs text-primary-hover dark:text-primary font-medium mt-0.5">
+                                {language === 'kh' ? item.nameEn : item.nameKh}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        {order.status === 'pending' ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                            <span>{language === 'kh' ? 'រង់ចាំពិនិត្យ' : 'Pending Review'}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30 whitespace-nowrap">
+                            <XCircle className="w-3.5 h-3.5" />
+                            <span>{language === 'kh' ? 'បានបដិសេធ' : 'Rejected'}</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-4 text-right">
+                        <div className="inline-flex items-center gap-1.5 bg-primary/20 dark:bg-primary/15 px-3.5 py-1.5 rounded-xl border border-primary/30 shadow-2xs whitespace-nowrap">
+                          <span className="font-black text-foreground text-base">
+                            {item.ordered}
+                          </span>
+                          <span className="font-extrabold text-primary-hover dark:text-primary text-xs uppercase">
+                            {item.unit}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bottom Approval Action Bar for Manager */}
+            {order.status === 'pending' && demoRole === 'manager' && (
+              <div className="bg-secondary/60 p-5 rounded-2xl border border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-left w-full sm:w-auto">
+                  <span className="font-black text-foreground text-sm block">
+                    {language === 'kh' ? 'តើអ្នកចង់យល់ព្រមលើបញ្ជីទិញផ្សារនេះមែនទេ?' : 'Ready to approve this market order?'}
+                  </span>
+                  <span className="font-kantumruy text-xs text-muted-foreground">
+                    {language === 'kh' ? '(អនុញ្ញាតឱ្យចុងភៅទិញទំនិញពីផ្សារ)' : 'Authorizing this order allows kitchen staff to proceed with procurement.'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <button
+                    onClick={handleReject}
+                    className="flex-1 sm:flex-none px-5 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 cursor-pointer whitespace-nowrap"
+                  >
+                    <XCircle className="w-4 h-4 stroke-[2.5]" />
+                    <span>{language === 'kh' ? 'បដិសេធ' : 'Reject Order'}</span>
+                  </button>
+                  <button
+                    onClick={handleApprove}
+                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-md hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer whitespace-nowrap"
+                  >
+                    <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                    <span>{language === 'kh' ? 'យល់ព្រមឱ្យទិញ' : 'Approve Order'}</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -445,7 +570,7 @@ export default function RequestDetailPage() {
         {order.status !== 'pending' && order.status !== 'rejected' && (
           <div className="space-y-5">
             {/* 3-in-1 Export Toolbar (Hidden when printing!) */}
-            <div className="print:hidden bg-[#0A8F4D]/5 border border-[#0A8F4D]/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+            <div className="print:hidden bg-primary/15 border border-primary/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
               <div className="space-y-1">
                 <h3 className="text-base font-black text-foreground flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500" />
@@ -499,7 +624,7 @@ export default function RequestDetailPage() {
                     <span className="text-3xl">🏪</span>
                     <h2 className="text-2xl font-black tracking-tight text-slate-900">RestaurantAI Kitchen</h2>
                   </div>
-                  <p className="text-xs font-extrabold text-[#0A8F4D] uppercase tracking-widest mt-1">
+                  <p className="text-xs font-extrabold text-amber-600 uppercase tracking-widest mt-1">
                     Morning Market Purchase Order / វិក្កយបត្របញ្ជាទិញ
                   </p>
                 </div>
@@ -537,10 +662,12 @@ export default function RequestDetailPage() {
                         </td>
                         <td className="py-3.5 px-3">
                           <div className="flex items-center gap-2.5">
-                            <span className="text-xl p-1 bg-slate-100 rounded-lg">{item.icon || '▫️'}</span>
+                            <span className="p-1.5 bg-slate-100 rounded-lg flex items-center justify-center">
+                              {renderIngredientIcon(item.icon || '', "w-5 h-5 text-slate-700")}
+                            </span>
                             <div>
-                              <p className="font-bold text-slate-900">{item.nameEn}</p>
-                              {item.nameKh && <p className="text-xs text-slate-600 font-semibold">{item.nameKh}</p>}
+                              <p className="font-bold text-slate-900">{language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}</p>
+                              {item.nameKh && <p className="text-xs text-slate-600 font-semibold">{language === 'kh' ? item.nameEn : item.nameKh}</p>}
                             </div>
                           </div>
                         </td>
@@ -581,21 +708,23 @@ export default function RequestDetailPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
               <div className="space-y-1">
                 <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-                  <PackageCheck className="w-6 h-6 text-[#0A8F4D]" />
-                  <span>Kitchen Delivery Check-in / ពិនិត្យទំនិញចូល</span>
+                  <PackageCheck className="w-6 h-6 text-primary" />
+                  <span>{language === 'kh' ? 'ពិនិត្យទំនិញចូល' : 'Kitchen Delivery Check-in'}</span>
                 </h3>
                 <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  When goods arrive from the market, staff verify each item below. Tap ✅ if correct, or ⚠️ if short/damaged.
+                  {language === 'kh'
+                    ? 'នៅពេលទំនិញមកដល់ពីផ្សារ សូមពិនិត្យផ្ទៀងផ្ទាត់ទំនិញនីមួយៗខាងក្រោម។ ចុច ✅ ប្រសិនបើត្រឹមត្រូវ ឬ ⚠️ ប្រសិនបើខ្វះ/ខូច។'
+                    : 'When goods arrive from the market, staff verify each item below. Tap ✅ if correct, or ⚠️ if short/damaged.'}
                 </p>
               </div>
 
               {!checkingIn && order.status !== 'completed' && order.status !== 'discrepancy' && (
                 <button
                   onClick={() => setCheckingIn(true)}
-                  className="bg-[#0A8F4D] hover:bg-[#0A8F4D]/90 text-white px-5 py-3 rounded-xl font-black text-sm transition-all shadow-md active:scale-95 flex items-center gap-2 flex-shrink-0"
+                  className="bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white px-5 py-3 rounded-xl font-black text-sm transition-all shadow-md active:scale-95 flex items-center gap-2 flex-shrink-0 whitespace-nowrap"
                 >
                   <PackageCheck className="w-5 h-5 stroke-[2.5]" />
-                  <span>Start Delivery Check-in / ចាប់ផ្តើមពិនិត្យ</span>
+                  <span>{language === 'kh' ? 'ចាប់ផ្តើមពិនិត្យ' : 'Start Delivery Check-in'}</span>
                 </button>
               )}
             </div>
@@ -607,28 +736,28 @@ export default function RequestDetailPage() {
                 <div className="bg-secondary/70 p-4 rounded-xl border border-border/80 space-y-2.5">
                   <div className="flex items-center justify-between text-xs sm:text-sm font-bold">
                     <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-[#0A8F4D] animate-pulse" />
-                      <span>Verification Progress</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+                      <span>{language === 'kh' ? 'វឌ្ឍនភាពនៃការពិនិត្យ' : 'Verification Progress'}</span>
                     </span>
                     <span className="text-foreground">
-                      <strong className="text-[#0A8F4D] font-black">{verifiedCount}</strong> / {totalItemsCount} items checked ({progressPercent}%)
+                      <strong className="text-primary-hover dark:text-primary font-black">{verifiedCount}</strong> / {totalItemsCount} {language === 'kh' ? 'មុខទំនិញបានពិនិត្យ' : 'items checked'} ({progressPercent}%)
                     </span>
                   </div>
                   <div className="w-full bg-background h-3 rounded-full overflow-hidden p-0.5 border border-border">
                     <div
-                      className="bg-[#0A8F4D] h-full rounded-full transition-all duration-300 ease-out"
+                      className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
                   {verifiedCount < totalItemsCount && (
                     <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground font-medium">
-                      <span>Tap &quot;Correct&quot; or &quot;Flag Issue&quot; on each card below</span>
+                      <span>{language === 'kh' ? 'ចុច "គ្រប់ចំនួន" ឬ "ខ្វះ/ខូច" លើទំនិញខាងក្រោម' : 'Tap "Correct" or "Flag Issue" on each card below'}</span>
                       <button
                         type="button"
                         onClick={handleMarkAllRemainingCorrect}
-                        className="text-[#0A8F4D] hover:underline font-bold"
+                        className="text-primary-hover dark:text-primary hover:underline font-bold"
                       >
-                        ⚡ Mark All Remaining Correct
+                        ⚡ {language === 'kh' ? 'កំណត់ទំនិញដែលនៅសល់ថាត្រឹមត្រូវទាំងអស់' : 'Mark All Remaining Correct'}
                       </button>
                     </div>
                   )}
@@ -652,21 +781,23 @@ export default function RequestDetailPage() {
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="flex items-center gap-3.5">
-                            <span className="text-2xl sm:text-3xl p-2.5 bg-secondary rounded-xl flex-shrink-0 shadow-inner">
-                              {item.icon || '▫️'}
+                            <span className="p-2.5 bg-secondary rounded-xl flex-shrink-0 shadow-inner flex items-center justify-center">
+                              {renderIngredientIcon(item.icon || '', "w-7 h-7 text-primary")}
                             </span>
                             <div className="space-y-0.5">
                               <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-base text-foreground">{item.nameEn}</h4>
+                                <h4 className="font-bold text-base text-foreground">
+                                  {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                </h4>
                                 {data.isVerified && (
                                   <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
                                     data.isCorrect ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                   }`}>
-                                    {data.isCorrect ? '✔ Verified' : '⚠️ Flagged'}
+                                    {data.isCorrect ? (language === 'kh' ? '✔ បានផ្ទៀងផ្ទាត់' : '✔ Verified') : (language === 'kh' ? '⚠️ មានបញ្ហា' : '⚠️ Flagged')}
                                   </span>
                                 )}
                               </div>
-                              {item.nameKh && <p className="text-xs text-[#0A8F4D] font-bold">{item.nameKh}</p>}
+                              {item.nameKh && <p className="text-xs text-primary-hover dark:text-primary font-bold">{language === 'kh' ? item.nameEn : item.nameKh}</p>}
                               <div className="text-xs text-muted-foreground font-medium pt-0.5 flex items-center gap-1.5 flex-wrap">
                                 <span>Ordered: <strong className="text-foreground font-bold">{item.ordered}</strong></span>
                                 <input
@@ -675,7 +806,7 @@ export default function RequestDetailPage() {
                                   value={data.unit || item.unit}
                                   onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
                                   placeholder="unit"
-                                  className="w-16 px-1.5 py-0.5 text-xs font-black text-center bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A8F4D] text-[#0A8F4D] shadow-2xs"
+                                  className="w-16 px-1.5 py-0.5 text-xs font-black text-center bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-primary-hover dark:text-primary shadow-2xs"
                                   title="Edit unit dynamically"
                                 />
                               </div>
@@ -689,12 +820,12 @@ export default function RequestDetailPage() {
                               onClick={() => handleMarkCorrect(item.id, item.ordered)}
                               className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
                                 data.isVerified && data.isCorrect
-                                  ? 'bg-[#0A8F4D] text-white shadow-sm scale-[1.02] ring-2 ring-[#0A8F4D]/40'
-                                  : 'bg-secondary hover:bg-[#0A8F4D] hover:text-white text-muted-foreground'
+                                  ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02] ring-2 ring-primary/40'
+                                  : 'bg-secondary hover:bg-primary hover:text-primary-foreground text-muted-foreground'
                               }`}
                             >
                               <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                              <span>Correct ({item.ordered}) / គ្រប់ចំនួន</span>
+                              <span>{language === 'kh' ? `គ្រប់ចំនួន (${item.ordered})` : `Correct (${item.ordered})`}</span>
                             </button>
 
                             <button
@@ -707,7 +838,7 @@ export default function RequestDetailPage() {
                               }`}
                             >
                               <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-                              <span>Flag Issue / ខ្វះ/ខូច</span>
+                              <span>{language === 'kh' ? 'ខ្វះ/ខូច (មានបញ្ហា)' : 'Flag Issue'}</span>
                             </button>
                           </div>
                         </div>
@@ -717,7 +848,7 @@ export default function RequestDetailPage() {
                           <div className="mt-4 pt-4 border-t border-red-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-red-500/5 p-4 rounded-xl animate-in fade-in duration-200">
                             <div>
                               <label className="block text-xs font-bold text-foreground mb-1.5">
-                                Actual Quantity Received / ចំនួនទទួលបានពិតប្រាកដ
+                                {language === 'kh' ? 'ចំនួនទទួលបានពិតប្រាកដ' : 'Actual Quantity Received'}
                               </label>
                               <div className="flex items-center gap-2">
                                 <button
@@ -734,7 +865,7 @@ export default function RequestDetailPage() {
                                   min="0"
                                   step="any"
                                   max={item.ordered}
-                                  className="w-20 text-center py-2 border border-border rounded-lg text-sm font-black bg-background focus:outline-none focus:ring-2 focus:ring-[#0A8F4D] shadow-inner"
+                                  className="w-20 text-center py-2 border border-border rounded-lg text-sm font-black bg-background focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
                                 />
                                 <button
                                   type="button"
@@ -749,7 +880,7 @@ export default function RequestDetailPage() {
                                   value={data.unit || item.unit}
                                   onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
                                   placeholder="unit"
-                                  className="w-16 px-1.5 py-1 text-xs font-black text-center bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0A8F4D] text-[#0A8F4D] shadow-2xs ml-1"
+                                  className="w-16 px-1.5 py-1 text-xs font-black text-center bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-primary-hover dark:text-primary shadow-2xs ml-1"
                                 />
                               </div>
                             </div>
@@ -761,7 +892,7 @@ export default function RequestDetailPage() {
                               <select
                                 value={data.reason || DISCREPANCY_REASONS[0]}
                                 onChange={(e) => handleUpdateReason(item.id, e.target.value)}
-                                className="w-full px-3.5 py-2.5 border border-border rounded-xl text-xs font-bold bg-background focus:outline-none focus:ring-2 focus:ring-[#0A8F4D] shadow-2xs"
+                                className="w-full px-3.5 py-2.5 border border-border rounded-xl text-xs font-bold bg-background focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs"
                               >
                                 {DISCREPANCY_REASONS.map((r) => (
                                   <option key={r} value={r}>{r}</option>
@@ -779,7 +910,7 @@ export default function RequestDetailPage() {
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/80">
                   <button
                     onClick={handleSubmitCheckIn}
-                    className="flex-1 bg-[#0A8F4D] hover:bg-[#0A8F4D]/90 text-white py-4 px-6 rounded-xl font-black text-base transition-all shadow-lg shadow-[#0A8F4D]/25 active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white py-4 px-6 rounded-xl font-black text-base transition-all shadow-lg shadow-primary/25 active:scale-95 flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
                     <span>Submit Delivery Verification Report ({verifiedCount}/{totalItemsCount} checked)</span>
@@ -845,7 +976,7 @@ export default function RequestDetailPage() {
                     <div className="flex justify-end pt-1">
                       <button
                         onClick={() => setCheckingIn(true)}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0A8F4D] hover:underline bg-[#0A8F4D]/10 px-3.5 py-2 rounded-xl transition-colors"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-hover dark:text-primary hover:underline bg-primary/15 px-3.5 py-2 rounded-xl transition-colors"
                       >
                         <span>✏️ Edit Delivery Report / កែសម្រួលរបាយការណ៍</span>
                       </button>
@@ -853,7 +984,7 @@ export default function RequestDetailPage() {
                   </div>
                 ) : (
                   <div className="bg-secondary/50 rounded-2xl p-8 text-center space-y-3 border border-dashed border-border">
-                    <div className="w-12 h-12 rounded-full bg-[#0A8F4D]/10 text-[#0A8F4D] flex items-center justify-center mx-auto">
+                    <div className="w-12 h-12 rounded-full bg-primary/20 text-primary-hover dark:text-primary flex items-center justify-center mx-auto">
                       <PackageCheck className="w-6 h-6 stroke-[2.5]" />
                     </div>
                     <div>

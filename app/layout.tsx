@@ -2,6 +2,7 @@ import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter, Kantumruy_Pro } from 'next/font/google'
 import { AuthProvider } from '@/lib/auth-context'
+import { LanguageProvider } from '@/lib/i18n'
 import './globals.css'
 
 const inter = Inter({
@@ -52,11 +53,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${kantumruy.variable} ${inter.className} bg-slate-50`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${kantumruy.variable} ${inter.className} bg-slate-50`}>
       <body className="antialiased min-h-screen bg-slate-50 text-slate-900 font-sans">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </LanguageProvider>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

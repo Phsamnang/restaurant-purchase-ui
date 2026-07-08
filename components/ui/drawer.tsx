@@ -57,7 +57,7 @@ const DrawerTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttrib
     if (asChild && React.isValidElement(children)) {
       return React.cloneElement(children as React.ReactElement<any>, {
         onClick: (e: React.MouseEvent<any>) => {
-          children.props.onClick?.(e);
+          (children as React.ReactElement<any>).props.onClick?.(e);
           setOpen(!open);
         },
         ref,
@@ -174,7 +174,7 @@ const DrawerClose = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttribut
     if (asChild && React.isValidElement(children)) {
       return React.cloneElement(children as React.ReactElement<any>, {
         onClick: (e: React.MouseEvent<any>) => {
-          children.props.onClick?.(e);
+          (children as React.ReactElement<any>).props.onClick?.(e);
           setOpen(false);
         },
         ref,

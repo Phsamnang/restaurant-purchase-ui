@@ -65,7 +65,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/requests/new"
-            className="bg-primary text-primary-foreground px-5 py-3 rounded-xl font-bold text-sm hover:opacity-90 transition-all shadow-md flex items-center gap-2 whitespace-nowrap active:scale-95"
+            className="bg-primary text-primary-foreground px-5 py-3 rounded-xl font-bold text-sm hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all shadow-md flex items-center gap-2 whitespace-nowrap active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>New Order / បង្ហោះបញ្ជីទិញ</span>
@@ -108,7 +108,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Link
               href="/requests/new"
-              className="bg-primary text-primary-foreground p-4 rounded-xl font-bold text-center hover:opacity-95 transition-all shadow-sm flex items-center justify-center gap-2 group"
+              className="bg-primary text-primary-foreground p-4 rounded-xl font-bold text-center hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all shadow-sm flex items-center justify-center gap-2 group"
             >
               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
               <span>Create Morning Market Order / ទិញទំនិញផ្សារ</span>

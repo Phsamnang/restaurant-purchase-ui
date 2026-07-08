@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/app-layout';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { EmptyState } from '@/components/shared/empty-state';
 import { getOrders, OrderRequest, resetOrdersToDefault } from '@/lib/orders';
+import { useTranslation } from '@/lib/i18n';
 import { RefreshCw, Plus } from 'lucide-react';
 
 const STATUS_FILTERS = [
@@ -22,6 +23,7 @@ const STATUS_FILTERS = [
 export default function RequestsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const { t, language } = useTranslation();
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [orders, setOrders] = useState<OrderRequest[]>([]);
 
@@ -45,7 +47,14 @@ export default function RequestsPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-bold text-slate-500">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <span>{t('common.loading')}</span>
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -55,7 +64,7 @@ export default function RequestsPage() {
   const filtered = selectedStatus === 'all' ? orders : orders.filter((r) => r.status === selectedStatus);
 
   return (
-    <AppLayout title="Market Orders / បញ្ជីការបញ្ជាទិញ">
+    <AppLayout title={t('orders.title')} subtitle={t('orders.subtitle')}>
       <div className="space-y-6 pb-24">
         {/* Top bar with Reset Demo button */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -64,7 +73,7 @@ export default function RequestsPage() {
           </p>
           <button
             onClick={handleResetDemo}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground bg-secondary px-3 py-1.5 rounded-lg border border-border/60 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground bg-secondary px-3 py-1.5 rounded-lg border border-border/60 transition-colors cursor-pointer"
             title="Reset demo data"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -77,19 +86,22 @@ export default function RequestsPage() {
           {STATUS_FILTERS.map((filter) => {
             const isSelected = selectedStatus === filter.id;
             const count = filter.id === 'all' ? orders.length : orders.filter((o) => o.status === filter.id).length;
+            const mainLabel = language === 'kh' ? filter.labelKh : filter.labelEn;
+            const subLabel = language === 'kh' ? filter.labelEn : filter.labelKh;
+
             return (
               <button
                 key={filter.id}
                 onClick={() => setSelectedStatus(filter.id)}
-                className={`px-4 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 flex-shrink-0 ${
+                className={`px-4 py-2 rounded-xl font-medium text-xs sm:text-sm transition-all whitespace-nowrap flex items-center gap-2 flex-shrink-0 cursor-pointer ${
                   isSelected
-                    ? 'bg-primary text-primary-foreground shadow-md scale-105'
+                    ? 'bg-primary text-primary-foreground shadow-md scale-105 font-bold'
                     : 'bg-secondary/70 text-foreground hover:bg-secondary border border-border/50'
                 }`}
               >
-                <span>{filter.labelEn}</span>
-                <span className="text-[10px] opacity-80">({filter.labelKh})</span>
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'}`}>
+                <span>{mainLabel}</span>
+                <span className="text-[10px] opacity-80">({subLabel})</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isSelected ? 'bg-black/10 dark:bg-white/20 text-primary-foreground' : 'bg-background text-muted-foreground'}`}>
                   {count}
                 </span>
               </button>
@@ -101,18 +113,23 @@ export default function RequestsPage() {
         {filtered.length === 0 ? (
           <EmptyState
             icon="📦"
-            title="No orders found / មិនមានបញ្ជីទិញទេ"
+            title={language === 'kh' ? "មិនមានបញ្ជីទិញទេ" : "No orders found"}
             description={`No ${selectedStatus !== 'all' ? selectedStatus : ''} orders matching this filter.`}
             action={{
-              label: '+ Create New Order / បង្ហោះការបញ្ជាទិញ',
+              label: t('orders.newRequest'),
               onClick: () => router.push('/requests/new'),
             }}
           />
         ) : (
           <div className="space-y-3">
             {filtered.map((request) => {
-              const itemsSummaryEn = request.items.map((i) => i.nameEn).join(', ');
-              const itemsSummaryKh = request.items.map((i) => i.nameKh).join(', ');
+              const mainSummary = request.items
+                .map((i) => (language === 'kh' ? (i.nameKh || i.nameEn) : i.nameEn))
+                .join(', ');
+              const subSummary = request.items
+                .map((i) => (language === 'kh' ? i.nameEn : (i.nameKh || i.nameEn)))
+                .join(', ');
+
               return (
                 <Link key={request.id} href={`/requests/${request.id}`}>
                   <div className="bg-card border border-border rounded-xl p-4 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group">
@@ -130,10 +147,10 @@ export default function RequestsPage() {
                           )}
                         </div>
                         <p className="font-semibold text-foreground text-sm sm:text-base truncate">
-                          {itemsSummaryEn}
+                          {mainSummary}
                         </p>
-                        <p className="text-xs text-primary font-medium truncate">
-                          {itemsSummaryKh}
+                        <p className="text-xs text-primary font-medium truncate font-kantumruy">
+                          {subSummary}
                         </p>
                       </div>
                       <div className="text-right flex-shrink-0 flex flex-col items-end justify-between">
@@ -154,10 +171,10 @@ export default function RequestsPage() {
         <div className="fixed bottom-6 right-6 z-30">
           <Link
             href="/requests/new"
-            className="bg-primary text-primary-foreground px-6 py-3.5 rounded-full font-bold text-sm sm:text-base hover:opacity-95 transition-all shadow-xl shadow-primary/25 flex items-center gap-2 hover:scale-105 active:scale-95"
+            className="bg-primary text-primary-foreground px-6 py-3.5 rounded-full font-bold text-sm sm:text-base hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all shadow-xl shadow-primary/25 flex items-center gap-2 hover:scale-105 active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            <span>New Order / ទិញទំនិញ</span>
+            <span>{t('orders.newRequest')}</span>
           </Link>
         </div>
       </div>
