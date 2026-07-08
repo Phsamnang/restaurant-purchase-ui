@@ -5,28 +5,106 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-  pending: { bg: 'bg-yellow-100 dark:bg-yellow-950/50 border border-yellow-300/60', text: 'text-yellow-800 dark:text-yellow-300', label: 'Pending / រង់ចាំពិនិត្យ' },
-  approved: { bg: 'bg-blue-100 dark:bg-blue-950/50 border border-blue-300/60', text: 'text-blue-800 dark:text-blue-300', label: 'Approved / យល់ព្រម' },
-  sent: { bg: 'bg-amber-100 dark:bg-amber-950/50 border border-amber-300/60', text: 'text-amber-800 dark:text-amber-300', label: 'Sent to Supplier / ផ្ញើទៅផ្សារ' },
-  received: { bg: 'bg-green-100 dark:bg-green-950/50 border border-green-300/60', text: 'text-green-800 dark:text-green-300', label: 'Received / បានទទួល' },
-  discrepancy: { bg: 'bg-red-100 dark:bg-red-950/50 border border-red-300/60', text: 'text-red-800 dark:text-red-300', label: 'Discrepancy / មានខ្វះខូច' },
-  completed: { bg: 'bg-purple-100 dark:bg-purple-950/50 border border-purple-300/60', text: 'text-purple-800 dark:text-purple-300', label: 'Completed / បានទទួលរួច' },
-  rejected: { bg: 'bg-rose-100 dark:bg-rose-950/50 border border-rose-300/60', text: 'text-rose-800 dark:text-rose-300', label: 'Rejected / បដិសេធ' },
+// Each status has a unique, non-overlapping color.
+// Yellow/amber is freed from status use entirely.
+const statusConfig: Record<string, {
+  bg: string;
+  text: string;
+  dot: string;
+  labelEn: string;
+  labelKh: string;
+}> = {
+  pending: {
+    bg: 'bg-orange-50 border border-orange-200',
+    text: 'text-orange-700',
+    dot: 'bg-orange-400',
+    labelEn: 'Pending Review',
+    labelKh: 'រង់ចាំពិនិត្យ',
+  },
+  approved: {
+    bg: 'bg-blue-50 border border-blue-200',
+    text: 'text-blue-700',
+    dot: 'bg-blue-500',
+    labelEn: 'Approved',
+    labelKh: 'យល់ព្រម',
+  },
+  sent: {
+    bg: 'bg-sky-50 border border-sky-200',
+    text: 'text-sky-700',
+    dot: 'bg-sky-400',
+    labelEn: 'Sent to Supplier',
+    labelKh: 'ផ្ញើទៅផ្សារ',
+  },
+  received: {
+    bg: 'bg-emerald-50 border border-emerald-200',
+    text: 'text-emerald-700',
+    dot: 'bg-emerald-500',
+    labelEn: 'Received',
+    labelKh: 'បានទទួល',
+  },
+  discrepancy: {
+    bg: 'bg-red-50 border border-red-200',
+    text: 'text-red-700',
+    dot: 'bg-red-500',
+    labelEn: 'Discrepancy',
+    labelKh: 'មានខ្វះខូច',
+  },
+  completed: {
+    bg: 'bg-emerald-50 border border-emerald-200',
+    text: 'text-emerald-700',
+    dot: 'bg-[#0A8F4D]',
+    labelEn: 'Completed',
+    labelKh: 'បានទទួលរួច',
+  },
+  rejected: {
+    bg: 'bg-slate-100 border border-slate-200',
+    text: 'text-slate-500',
+    dot: 'bg-slate-400',
+    labelEn: 'Rejected',
+    labelKh: 'បដិសេធ',
+  },
 };
 
 export function StatusBadge({ status, size = 'md' }: StatusBadgeProps) {
-  const config = statusConfig[status] || { 
-    bg: 'bg-gray-100 dark:bg-gray-800 border border-gray-300/60', 
-    text: 'text-gray-800 dark:text-gray-300', 
-    label: status || 'Unknown' 
+  const config = statusConfig[status] || {
+    bg: 'bg-slate-100 border border-slate-200',
+    text: 'text-slate-500',
+    dot: 'bg-slate-400',
+    labelEn: status || 'Unknown',
+    labelKh: '',
   };
-  
-  const sizeClass = size === 'sm' ? 'px-2.5 py-0.5 text-[11px]' : size === 'lg' ? 'px-4 py-1.5 text-sm' : 'px-3 py-1 text-xs';
 
+  if (size === 'sm') {
+    // Compact inline pill — single line English only
+    return (
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${config.bg} ${config.text}`}>
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dot}`} />
+        {config.labelEn}
+      </span>
+    );
+  }
+
+  if (size === 'lg') {
+    // Full bilingual stacked badge
+    return (
+      <span className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 ${config.bg} ${config.text}`}>
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${config.dot}`} />
+        <span className="flex flex-col leading-tight">
+          <span className="text-sm font-bold">{config.labelEn}</span>
+          <span className="text-[11px] font-medium opacity-80 font-kantumruy">{config.labelKh}</span>
+        </span>
+      </span>
+    );
+  }
+
+  // md — default: dot + English + Khmer on own line
   return (
-    <span className={`inline-block rounded-full font-bold shadow-2xs ${sizeClass} ${config.bg} ${config.text}`}>
-      {config.label}
+    <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-bold ${config.bg} ${config.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${config.dot}`} />
+      <span className="flex flex-col leading-tight">
+        <span>{config.labelEn}</span>
+        <span className="font-kantumruy text-[10px] font-medium opacity-70">{config.labelKh}</span>
+      </span>
     </span>
   );
 }

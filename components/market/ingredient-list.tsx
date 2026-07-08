@@ -18,24 +18,21 @@ interface IngredientListProps {
 export const renderIngredientIcon = (iconName: string, className = "w-5 h-5") => {
   switch (iconName) {
     case 'LayoutGrid': return <LayoutGrid className={className} />;
-    case 'Beef': return <Beef className={className} />;
-    case 'Fish': return <Fish className={className} />;
-    case 'Carrot': return <Carrot className={className} />;
+    case 'Beef': case '🥩': case 'pork-belly': case 'beef-tenderloin': return <Beef className={className} />;
+    case 'Fish': case '🐟': case '🦐': case 'river-fish': case 'shrimp': return <Fish className={className} />;
+    case 'Carrot': case '🧄': case '🍋': case 'garlic': case 'lime': return <Carrot className={className} />;
     case 'Soup': return <Soup className={className} />;
-    case 'Wheat': return <Wheat className={className} />;
-    case 'GlassWater': return <GlassWater className={className} />;
+    case 'Wheat': case '🍚': case '🌾': case 'jasmine-rice': return <Wheat className={className} />;
+    case 'GlassWater': case '🍾': case '🧊': case 'oyster-sauce': case 'crushed-ice': return <GlassWater className={className} />;
     case 'Package': return <Package className={className} />;
     case 'Utensils': return <Utensils className={className} />;
-    case 'Egg': return <Egg className={className} />;
-    case 'Droplets': return <Droplets className={className} />;
+    case 'Egg': case '🐓': case 'whole-chicken': return <Egg className={className} />;
+    case 'Droplets': case '🧂': case 'fish-sauce': return <Droplets className={className} />;
     case 'CookingPot': return <CookingPot className={className} />;
     case 'Beer': return <Beer className={className} />;
-    case 'Leaf': return <Leaf className={className} />;
+    case 'Leaf': case '🌿': case '🌱': case 'lemongrass': case 'morning-glory': return <Leaf className={className} />;
     default:
-      if (iconName && !iconName.match(/^[a-zA-Z]/)) {
-        return <span className="text-xl leading-none">{iconName}</span>;
-      }
-      return <Store className={className} />;
+      return <Package className={className} />;
   }
 };
 

@@ -2,1004 +2,872 @@
 
 import { useAuth } from '@/lib/auth-context';
 import { useRouter, useParams } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppLayout } from '@/components/app-layout';
-import { StatusBadge } from '@/components/shared/status-badge';
 import { useTranslation } from '@/lib/i18n';
+import { PrintSheet } from '@/components/market/print-sheet';
 import { renderIngredientIcon } from '@/components/market/ingredient-list';
 import { getOrderById, updateOrder, OrderRequest, OrderItemDetail } from '@/lib/orders';
 import { 
   CheckCircle2, 
   XCircle, 
   Printer, 
-  Image as ImageIcon, 
   Send, 
   AlertTriangle, 
   ShieldCheck, 
   UserCheck, 
   PackageCheck, 
   ArrowLeft,
-  Sparkles,
-  Plus,
-  Minus,
-  AlertCircle,
+  Copy,
   Check,
   Store,
   Calendar,
   Clock,
   User,
   FileText,
-  Share2,
   Download,
-  ChevronRight,
-  Flame,
+  FileEdit,
+  Package,
+  History,
+  TrendingUp,
+  Minus,
+  Plus,
+  AlertCircle,
   HelpCircle
 } from 'lucide-react';
 
-const DISCREPANCY_REASONS = [
-  'Out of Stock / អស់ពីផ្សារ',
-  'Damaged or Spoiled / ខូចគុណភាព/រលួយ',
-  'Wrong Item Delivered / ខុសមុខទំនិញ',
-  'Price Changed / ដូរតម្លៃ',
-  'Short Delivery / ខ្វះទម្ងន់/ចំនួន',
-];
-
-const COMMON_UNITS = [
-  'kg',
-  'g',
-  'bundle',
-  'bottle',
-  'sack',
-  'pack',
-  'can',
-  'case',
-  'bird',
-  'piece'
-];
-
-interface CheckInData {
-  received: number;
-  isCorrect: boolean;
-  isVerified: boolean;
-  reason?: string;
-  unit?: string;
+// ── Portal: mounts children directly on document.body so @media print can isolate them
+function PrintPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
 }
 
 export default function RequestDetailPage() {
-  const { user, loading } = useAuth();
-  const { t, language } = useTranslation();
+  const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
-  
-  // State
-  const [order, setOrder] = useState<OrderRequest | null>(null);
-  const [pageLoading, setPageLoading] = useState(true);
-  const [demoRole, setDemoRole] = useState<'manager' | 'staff'>('manager');
-  const [exportingImage, setExportingImage] = useState(false);
+  const id = Array.isArray(params?.id) ? params.id[0] : (params?.id as string);
+  const { t, language } = useTranslation();
 
-  // Delivery Check-in State
+  const [order, setOrder] = useState<OrderRequest | null>(null);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<'po' | 'checkin'>('po');
   const [checkingIn, setCheckingIn] = useState(false);
-  const [receivedData, setReceivedData] = useState<Record<string, CheckInData>>({});
+  const [printQueue, setPrintQueue] = useState<OrderRequest[]>([]);
+  const [printCurrency, setPrintCurrency] = useState<'KHR' | 'USD'>('KHR');
+
+  // Stage 3 Check-in state
+  const [receivedData, setReceivedData] = useState<Record<string, { received: number; isCorrect: boolean; isVerified: boolean; unit?: string }>>({});
+
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-      return;
-    }
-
-    if (params.id) {
-      const found = getOrderById(params.id as string);
-      if (found) {
-        setOrder(found);
-        // Initialize check-in data
-        const initial: Record<string, CheckInData> = {};
-        found.items.forEach((item) => {
-          const rec = item.received !== undefined ? item.received : item.ordered;
-          const isCorr = item.received === undefined || item.received === item.ordered;
-          const isVer = item.received !== undefined;
-          initial[item.id] = { 
-            received: rec, 
-            isCorrect: isCorr, 
-            isVerified: isVer,
-            reason: item.discrepancyReason 
+    if (id) {
+      const data = getOrderById(id);
+      if (data) {
+        setOrder(data);
+        // Initialize received data
+        const initialData: Record<string, { received: number; isCorrect: boolean; isVerified: boolean; unit?: string }> = {};
+        data.items.forEach((item) => {
+          const isCorrect = item.received === undefined || item.received === item.ordered;
+          const isVerified = item.received !== undefined || data.status === 'completed';
+          initialData[item.id] = {
+            received: item.received !== undefined ? item.received : item.ordered,
+            isCorrect,
+            isVerified,
+            unit: item.unit
           };
         });
-        setReceivedData(initial);
+        setReceivedData(initialData);
       }
-      setPageLoading(false);
     }
-  }, [user, loading, router, params.id]);
+  }, [id]);
 
-  // Verification progress calculations
-  const totalItemsCount = order?.items.length || 0;
-  const verifiedCount = useMemo(() => {
-    return Object.values(receivedData).filter((d) => d.isVerified).length;
-  }, [receivedData]);
-  const progressPercent = totalItemsCount > 0 ? Math.round((verifiedCount / totalItemsCount) * 100) : 0;
+  // Handle Item Checkbox Selection
+  const toggleSelectItem = (itemId: string) => {
+    setSelectedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  };
 
-  // Handlers for Manager Approval
-  const handleApprove = () => {
+  const toggleSelectAll = () => {
     if (!order) return;
-    const updated: OrderRequest = {
-      ...order,
+    if (selectedItems.size === order.items.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(order.items.map((i) => i.id)));
+    }
+  };
+
+  // 1-Click Copy Link
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Quick Share Actions
+  const handleShareTelegram = () => {
+    if (!order) return;
+    const text = encodeURIComponent(`📦 Purchase Order ${order.id} (${order.items.length} items, ${order.total})\nView ERP Details: ${window.location.href}`);
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${text}`, '_blank');
+  };
+
+  // Manager Approval Actions
+  const handleApprove = () => {
+    if (!order || !user) return;
+    const updated = updateOrder(order.id, {
       status: 'approved',
-      approvedBy: user?.name ? `${user.name} (អ្នកគ្រប់គ្រង)` : 'Manager Dara (អ្នកគ្រប់គ្រង)',
-    };
-    updateOrder(updated);
-    setOrder(updated);
+      approvedBy: `${user.name} (${user.role})`
+    });
+    if (updated) setOrder(updated);
   };
 
   const handleReject = () => {
-    if (!order) return;
-    if (!confirm('Are you sure you want to reject this order? / តើអ្នកពិតជាចង់បដិសេធមែនទេ?')) return;
-    const updated: OrderRequest = {
-      ...order,
+    if (!order || !user) return;
+    const updated = updateOrder(order.id, {
       status: 'rejected',
-    };
-    updateOrder(updated);
-    setOrder(updated);
+      approvedBy: `${user.name} (${user.role})`
+    });
+    if (updated) setOrder(updated);
   };
 
-  // Handlers for Supplier Export
-  const handleDownloadPNG = async () => {
-    const element = document.getElementById('supplier-invoice-card');
-    if (!element) return;
-    setExportingImage(true);
-    try {
-      const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(element, { 
-        scale: 2, 
-        backgroundColor: '#ffffff',
-        useCORS: true,
-        logging: false 
-      } as any);
-      const link = document.createElement('a');
-      link.download = `${order?.id || 'order'}-supplier-sheet.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (err) {
-      alert('Failed to generate image. Please use Print/PDF instead.');
-    } finally {
-      setExportingImage(false);
-    }
-  };
-
-  const handlePrintPDF = () => {
-    window.print();
-  };
-
-  const handleShareTelegram = () => {
+  const handlePrint = () => {
     if (!order) return;
-    const text = `📋 *MARKET PURCHASE ORDER / បញ្ជីទំនិញ #${order.id}*\n🏪 RestaurantAI Kitchen\n📅 Date: ${order.date}\n---\n` +
-      order.items.map((i, idx) => `${idx + 1}. ${i.icon || '▫️'} *${i.nameEn}* (${i.nameKh}) - *${i.ordered} ${i.unit}*`).join('\n') +
-      `\n---\n✅ Approved by ${order.approvedBy || 'Manager'}\n🙏 Please check items as you pack and deliver by morning! / សូមដឹកជញ្ជូនពេលព្រឹក!`;
-    
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(text)}`, '_blank');
-    
-    if (order.status === 'approved') {
-      const updated: OrderRequest = { ...order, status: 'sent' };
-      updateOrder(updated);
-      setOrder(updated);
-    }
+    const currency = order.currency || 'KHR';
+    setPrintCurrency(currency);
+    setPrintQueue([order]);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
-  // Handlers for Fast-Tap Delivery Check-in
+  // Stage 3 Check-in Handlers
   const handleMarkCorrect = (itemId: string, orderedQty: number) => {
     setReceivedData((prev) => ({
       ...prev,
-      [itemId]: { received: orderedQty, isCorrect: true, isVerified: true, reason: undefined },
+      [itemId]: {
+        ...prev[itemId],
+        received: orderedQty,
+        isCorrect: true,
+        isVerified: true
+      }
     }));
   };
 
   const handleToggleDiscrepancy = (itemId: string, orderedQty: number) => {
     setReceivedData((prev) => {
-      const current = prev[itemId];
-      const newRec = current && current.received < orderedQty ? current.received : Math.max(0, orderedQty - 1);
+      const current = prev[itemId] || { received: orderedQty, isCorrect: true, isVerified: false };
+      const newIsCorrect = !current.isCorrect;
       return {
         ...prev,
-        [itemId]: { 
-          received: newRec, 
-          isCorrect: false, 
-          isVerified: true,
-          reason: current?.reason || DISCREPANCY_REASONS[0] 
-        },
+        [itemId]: {
+          ...current,
+          received: newIsCorrect ? orderedQty : Math.max(0, orderedQty - 1),
+          isCorrect: newIsCorrect,
+          isVerified: true
+        }
       };
     });
   };
 
   const handleUpdateReceivedQty = (itemId: string, qty: number, orderedQty: number) => {
-    setReceivedData((prev) => {
-      const current = prev[itemId] || { received: orderedQty, isCorrect: true, isVerified: true };
-      const isNowCorrect = qty === orderedQty;
-      return {
-        ...prev,
-        [itemId]: {
-          ...current,
-          received: Math.max(0, qty),
-          isCorrect: isNowCorrect,
-          isVerified: true,
-          reason: isNowCorrect ? undefined : (current.reason || DISCREPANCY_REASONS[0]),
-        },
-      };
-    });
-  };
-
-  const handleUpdateReason = (itemId: string, reason: string) => {
-    setReceivedData((prev) => {
-      const current = prev[itemId];
-      if (!current) return prev;
-      return {
-        ...prev,
-        [itemId]: { ...current, reason },
-      };
-    });
-  };
-
-  const handleUpdateUnit = (itemId: string, newUnit: string) => {
-    setReceivedData((prev) => {
-      const current = prev[itemId];
-      if (!current) return prev;
-      return {
-        ...prev,
-        [itemId]: { ...current, unit: newUnit },
-      };
-    });
+    const validQty = Math.max(0, qty);
+    setReceivedData((prev) => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        received: validQty,
+        isCorrect: validQty === orderedQty,
+        isVerified: true
+      }
+    }));
   };
 
   const handleMarkAllRemainingCorrect = () => {
     if (!order) return;
-    const next = { ...receivedData };
-    order.items.forEach((item) => {
-      if (!next[item.id] || !next[item.id].isVerified) {
-        next[item.id] = { received: item.ordered, isCorrect: true, isVerified: true, reason: undefined };
-      }
+    setReceivedData((prev) => {
+      const updated = { ...prev };
+      order.items.forEach((item) => {
+        if (!updated[item.id] || !updated[item.id].isVerified) {
+          updated[item.id] = {
+            received: item.ordered,
+            isCorrect: true,
+            isVerified: true,
+            unit: item.unit
+          };
+        }
+      });
+      return updated;
     });
-    setReceivedData(next);
   };
 
-  const handleSubmitCheckIn = () => {
+  const handleCompleteCheckIn = () => {
     if (!order) return;
-    
-    // Ensure all items are marked verified
-    const unverified = order.items.filter((item) => !receivedData[item.id]?.isVerified);
-    if (unverified.length > 0) {
-      if (!confirm(`You still have ${unverified.length} unverified items. Mark them as 100% correct and submit?`)) {
-        return;
-      }
-      handleMarkAllRemainingCorrect();
+    const allVerified = order.items.every((item) => receivedData[item.id]?.isVerified);
+    if (!allVerified) {
+      alert(language === 'kh' ? 'សូមពិនិត្យផ្ទៀងផ្ទាត់ទំនិញទាំងអស់ជាមុនសិន!' : 'Please verify all items before completing delivery check-in!');
+      return;
     }
 
-    const anyShortage = order.items.some((item) => {
-      const data = receivedData[item.id];
-      return !data || !data.isCorrect || data.received !== item.ordered;
-    });
+    const hasDiscrepancy = order.items.some((item) => !receivedData[item.id]?.isCorrect);
+    const newStatus = hasDiscrepancy ? 'discrepancy' : 'completed';
 
-    const finalStatus = anyShortage ? 'discrepancy' : 'completed';
-
-    const updatedItems = order.items.map((item) => {
-      const data = receivedData[item.id] || { received: item.ordered, isCorrect: true };
+    const updatedItems: OrderItemDetail[] = order.items.map((item) => {
+      const rData = receivedData[item.id];
       return {
         ...item,
-        unit: data.unit || item.unit,
-        received: data.received,
-        discrepancyReason: data.isCorrect ? undefined : data.reason,
+        unit: rData.unit || item.unit,
+        received: rData.received,
+        discrepancyReason: !rData.isCorrect ? 'Discrepancy flagged during check-in' : undefined
       };
     });
 
-    const updated: OrderRequest = {
-      ...order,
-      status: finalStatus,
-      items: updatedItems,
-    };
+    const updated = updateOrder(order.id, {
+      status: newStatus,
+      items: updatedItems
+    });
 
-    updateOrder(updated);
-    setOrder(updated);
-    setCheckingIn(false);
-    
-    if (finalStatus === 'discrepancy') {
-      alert('⚠️ Discrepancy reported! The manager has been notified of shortages/issues.');
-    } else {
-      alert('🎉 All items verified correct! Order marked as Completed.');
+    if (updated) {
+      setOrder(updated);
+      setCheckingIn(false);
     }
   };
 
-  if (loading || pageLoading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center font-bold text-muted-foreground">Loading order details...</div>;
-  }
-
-  if (!user || !order) {
+  if (!order) {
     return (
-      <AppLayout title="Order Not Found">
-        <div className="text-center py-16 space-y-4 bg-card border border-border rounded-2xl max-w-md mx-auto my-12 p-8 shadow-sm">
-          <div className="w-16 h-16 bg-secondary text-muted-foreground rounded-full flex items-center justify-center mx-auto">
-            <HelpCircle className="w-8 h-8" />
-          </div>
-          <h3 className="text-xl font-bold text-foreground">Order Not Found</h3>
-          <p className="text-sm text-muted-foreground">This order reference could not be found or has been removed.</p>
-          <button onClick={() => router.push('/requests')} className="bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-sm">
-            Back to Orders List
-          </button>
+      <AppLayout>
+        <div className="max-w-[1440px] mx-auto p-8 text-center min-h-screen flex flex-col items-center justify-center">
+          <Clock className="w-10 h-10 text-slate-400 animate-spin mb-4" />
+          <p className="text-slate-500 font-medium">Loading ERP Order Details...</p>
         </div>
       </AppLayout>
     );
   }
 
+  const verifiedCount = order.items.filter((i) => receivedData[i.id]?.isVerified).length;
+  const progressPercent = Math.round((verifiedCount / order.items.length) * 100);
+
+  // Render Clean Lucide Status Badge
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#F59E0B]/10 text-[#F59E0B] border border-[#F59E0B]/30 shadow-2xs">
+            <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{language === 'kh' ? 'រង់ចាំការពិនិត្យ' : 'Pending Review'}</span>
+          </span>
+        );
+      case 'approved':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#0A8F4D]/10 text-[#0A8F4D] border border-[#0A8F4D]/30 shadow-2xs">
+            <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{language === 'kh' ? 'បានអនុម័ត' : 'Approved'}</span>
+          </span>
+        );
+      case 'sent':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 border border-sky-500/30 shadow-2xs">
+            <Send className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{language === 'kh' ? 'បានបញ្ជូនទៅផ្សារ' : 'Sent to Market'}</span>
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/30 shadow-2xs">
+            <PackageCheck className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{language === 'kh' ? 'បានទទួលគ្រប់ចំនួន' : 'Completed (Verified)'}</span>
+          </span>
+        );
+      case 'discrepancy':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/30 shadow-2xs">
+            <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{language === 'kh' ? 'មានបញ្ហា/ខ្វះ' : 'Discrepancy Flagged'}</span>
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#EF4444]/10 text-[#EF4444] border border-[#EF4444]/30 shadow-2xs">
+            <XCircle className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>{language === 'kh' ? 'បដិសេធ' : 'Rejected'}</span>
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
-    <AppLayout title={`Order #${order.id}`}>
-      <datalist id="common-units-list">
-        {COMMON_UNITS.map((u) => (
-          <option key={u} value={u} />
-        ))}
-      </datalist>
-      <div className="space-y-6 pb-32">
-        {/* Top Navigation & Role Switcher Banner (Hidden when printing!) */}
-        <div className="print:hidden bg-card border border-border/80 rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <button
-            onClick={() => router.push('/requests')}
-            className="inline-flex items-center gap-2 text-sm font-bold text-muted-foreground hover:text-foreground transition-colors group"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>{language === 'kh' ? 'ត្រឡប់ទៅបញ្ជីបញ្ជាទិញ' : 'Back to Orders List'}</span>
-          </button>
-
-          {/* Role Demo Switcher Pill */}
-          <div className="flex items-center gap-2 bg-secondary/80 p-1.5 rounded-xl border border-border/80 w-full sm:w-auto justify-between sm:justify-start">
-            <span className="text-xs font-black px-2 text-muted-foreground uppercase tracking-wider">Demo Role:</span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setDemoRole('manager')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  demoRole === 'manager'
-                    ? 'bg-primary text-primary-foreground shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>👨‍💼 Manager</span>
-              </button>
-              <button
-                onClick={() => setDemoRole('staff')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  demoRole === 'staff'
-                    ? 'bg-primary text-primary-foreground shadow-2xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <PackageCheck className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>🧑‍🍳 Kitchen Staff</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Status & Summary Header (Hidden when printing!) */}
-        <div className="print:hidden bg-card border border-border/80 rounded-2xl p-6 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">{order.id}</h1>
-              <StatusBadge status={order.status as any} size="lg" />
-            </div>
-            <div className="flex items-center gap-4 text-xs sm:text-sm text-muted-foreground font-medium flex-wrap">
-              <span className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-primary" />
-                <span>{language === 'kh' ? 'កាលបរិច្ឆេទ៖' : 'Ordered:'} <strong className="text-foreground">{order.date}</strong></span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <User className="w-4 h-4 text-primary" />
-                <span>{language === 'kh' ? 'ដោយ៖' : 'By:'} <strong className="text-foreground">{order.createdBy}</strong></span>
-              </span>
-              {order.approvedBy && (
-                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>{language === 'kh' ? `យល់ព្រមដោយ ${order.approvedBy}` : `Approved by ${order.approvedBy}`}</span>
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="text-left sm:text-right bg-secondary/50 sm:bg-transparent p-4 sm:p-0 rounded-xl border sm:border-0 border-border/60">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold">
-              {language === 'kh' ? 'តម្លៃប៉ាន់ស្មានសរុប' : 'Estimated Total'}
-            </p>
-            <p className="text-3xl sm:text-4xl font-black text-primary-hover dark:text-primary mt-0.5">{order.total}</p>
-            <p className="text-[11px] text-muted-foreground font-medium mt-1">
-              {order.items.length} {language === 'kh' ? 'មុខទំនិញត្រូវបានស្នើសុំ' : 'unique ingredients requested'}
-            </p>
-          </div>
-        </div>
-
-        {/* REQUESTED ITEMS DETAIL FOR MANAGER REVIEW (Visible when pending or rejected) */}
-        {(order.status === 'pending' || order.status === 'rejected') && (
-          <div className="print:hidden bg-card rounded-3xl border border-border shadow-lg p-6 sm:p-8 space-y-6 animate-in fade-in duration-300">
-            {/* Section Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-primary text-primary-foreground rounded-2xl font-bold shadow-md">
-                  <PackageCheck className="w-6 h-6 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-foreground tracking-tight flex items-center gap-2">
-                    <span>{language === 'kh' ? 'បញ្ជីទំនិញដែលចុងភៅស្នើសុំ' : "Chef's Requested Market List"}</span>
-                    <span className="bg-primary/20 text-foreground text-xs px-2.5 py-0.5 rounded-full font-bold">
-                      {order.items.length} {language === 'kh' ? 'មុខទំនិញ' : 'items'}
-                    </span>
-                  </h3>
-                  <p className="font-kantumruy text-xs text-muted-foreground font-light mt-0.5">
-                    {language === 'kh'
-                      ? 'តារាងមុខទំនិញ និងចំនួនដែលចុងភៅស្នើសុំទិញផ្សារ (សូមពិនិត្យមុនពេលយល់ព្រម)'
-                      : 'Review the requested items, quantities, and units below before authorizing.'}
-                  </p>
-                </div>
-              </div>
-              <div className="bg-secondary/60 px-4 py-2.5 rounded-xl border border-border/60 text-right">
-                <span className="text-[11px] font-bold text-muted-foreground uppercase block">
-                  {language === 'kh' ? 'តម្លៃប៉ាន់ស្មាន' : 'Total Estimated Cost'}
-                </span>
-                <span className="text-xl font-black text-primary-hover dark:text-primary">{order.total}</span>
-              </div>
-            </div>
-
-            {/* Chef Remarks / Requisition Info */}
-            {order.notes ? (
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
-                <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-                <div>
-                  <span className="text-xs font-bold uppercase text-amber-800 dark:text-amber-300 block">
-                    {language === 'kh' ? 'កំណត់សម្គាល់ពីចុងភៅ' : 'Chef Submission Remarks'}
-                  </span>
-                  <p className="text-sm font-medium text-amber-900 dark:text-amber-200 mt-0.5 leading-relaxed">
-                    {order.notes.replace('Chef Chef ', 'Chef ')}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 rounded-2xl bg-secondary/50 border border-border/60 flex items-center justify-between text-xs font-semibold text-muted-foreground flex-wrap gap-2">
-                <span className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span>
-                    {language === 'kh' ? 'ស្នើសុំនៅកាលបរិច្ឆេទ ' : 'Requested on '}
-                    <strong className="text-foreground">{order.date}</strong>
-                    {language === 'kh' ? ' ដោយ ' : ' by '}
-                    <strong className="text-foreground">{order.createdBy}</strong>
-                  </span>
-                </span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                  ⚡ {language === 'kh' ? 'រៀបចំរួចរាល់សម្រាប់ទិញផ្សារព្រឹក' : 'Ready for Morning Market Procurement'}
-                </span>
-              </div>
-            )}
-
-            {/* Detailed Items Table */}
-            <div className="border border-border/80 rounded-2xl overflow-hidden shadow-2xs">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-secondary/80 border-b border-border/80 text-xs font-black text-muted-foreground uppercase tracking-wider">
-                    <th className="py-3.5 px-4 w-16 text-center">#</th>
-                    <th className="py-3.5 px-4">{language === 'kh' ? 'ឈ្មោះទំនិញ' : 'Ingredient Name'}</th>
-                    <th className="py-3.5 px-4 text-center">{language === 'kh' ? 'ស្ថានភាព' : 'Status'}</th>
-                    <th className="py-3.5 px-4 text-right">{language === 'kh' ? 'ចំនួនត្រូវទិញ' : 'Requested Quantity'}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50 text-sm">
-                  {order.items.map((item, idx) => (
-                    <tr key={item.id || idx} className="hover:bg-secondary/40 transition-colors group">
-                      <td className="py-4 px-4 text-center">
-                        <span className="w-7 h-7 rounded-xl bg-secondary text-foreground font-black text-xs flex items-center justify-center mx-auto border border-border/80">
-                          {idx + 1}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <span className="p-2.5 bg-primary/10 rounded-xl border border-primary/20 flex-shrink-0 flex items-center justify-center">
-                            {renderIngredientIcon(item.icon || '', "w-6 h-6 text-primary")}
-                          </span>
-                          <div>
-                            <h4 className="font-bold text-foreground text-base group-hover:text-primary transition-colors">
-                              {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
-                            </h4>
-                            {item.nameKh && (
-                              <p className="font-kantumruy text-xs text-primary-hover dark:text-primary font-medium mt-0.5">
-                                {language === 'kh' ? item.nameEn : item.nameKh}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        {order.status === 'pending' ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/30 whitespace-nowrap">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                            <span>{language === 'kh' ? 'រង់ចាំពិនិត្យ' : 'Pending Review'}</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30 whitespace-nowrap">
-                            <XCircle className="w-3.5 h-3.5" />
-                            <span>{language === 'kh' ? 'បានបដិសេធ' : 'Rejected'}</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5 bg-primary/20 dark:bg-primary/15 px-3.5 py-1.5 rounded-xl border border-primary/30 shadow-2xs whitespace-nowrap">
-                          <span className="font-black text-foreground text-base">
-                            {item.ordered}
-                          </span>
-                          <span className="font-extrabold text-primary-hover dark:text-primary text-xs uppercase">
-                            {item.unit}
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Bottom Approval Action Bar for Manager */}
-            {order.status === 'pending' && demoRole === 'manager' && (
-              <div className="bg-secondary/60 p-5 rounded-2xl border border-border/80 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="text-left w-full sm:w-auto">
-                  <span className="font-black text-foreground text-sm block">
-                    {language === 'kh' ? 'តើអ្នកចង់យល់ព្រមលើបញ្ជីទិញផ្សារនេះមែនទេ?' : 'Ready to approve this market order?'}
-                  </span>
-                  <span className="font-kantumruy text-xs text-muted-foreground">
-                    {language === 'kh' ? '(អនុញ្ញាតឱ្យចុងភៅទិញទំនិញពីផ្សារ)' : 'Authorizing this order allows kitchen staff to proceed with procurement.'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 w-full sm:w-auto">
-                  <button
-                    onClick={handleReject}
-                    className="flex-1 sm:flex-none px-5 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 cursor-pointer whitespace-nowrap"
-                  >
-                    <XCircle className="w-4 h-4 stroke-[2.5]" />
-                    <span>{language === 'kh' ? 'បដិសេធ' : 'Reject Order'}</span>
-                  </button>
-                  <button
-                    onClick={handleApprove}
-                    className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-md hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer whitespace-nowrap"
-                  >
-                    <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                    <span>{language === 'kh' ? 'យល់ព្រមឱ្យទិញ' : 'Approve Order'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* STAGE 2: SUPPLIER EXPORT CARD & TOOLBAR (When approved, sent, completed, or discrepancy) */}
-        {order.status !== 'pending' && order.status !== 'rejected' && (
-          <div className="space-y-5">
-            {/* 3-in-1 Export Toolbar (Hidden when printing!) */}
-            <div className="print:hidden bg-primary/15 border border-primary/30 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-              <div className="space-y-1">
-                <h3 className="text-base font-black text-foreground flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500" />
-                  <span>Send to Supplier / ផ្ញើទៅអ្នកផ្គត់ផ្គង់ផ្សារ</span>
-                </h3>
-                <p className="text-xs text-muted-foreground font-medium">
-                  Download as a clean Image, Print/PDF, or share directly via Telegram to your wet market vendors!
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <button
-                  onClick={handleDownloadPNG}
-                  disabled={exportingImage}
-                  className="bg-card hover:bg-secondary border border-border/80 text-foreground px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs flex items-center gap-2 active:scale-95 disabled:opacity-50"
-                  title="Download clean PNG invoice image"
-                >
-                  <ImageIcon className="w-4 h-4 text-blue-500 stroke-[2.5]" />
-                  <span>{exportingImage ? 'Generating...' : 'Image (PNG)'}</span>
-                </button>
-
-                <button
-                  onClick={handlePrintPDF}
-                  className="bg-card hover:bg-secondary border border-border/80 text-foreground px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-2xs flex items-center gap-2 active:scale-95"
-                  title="Print or Save as PDF"
-                >
-                  <Printer className="w-4 h-4 text-purple-500 stroke-[2.5]" />
-                  <span>Print / PDF</span>
-                </button>
-
-                <button
-                  onClick={handleShareTelegram}
-                  className="bg-[#0088cc] hover:bg-[#0077b3] text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all shadow-md flex items-center gap-2 active:scale-95"
-                  title="Share formatted order list to Telegram"
-                >
-                  <Send className="w-4 h-4 stroke-[2.5]" />
-                  <span>Telegram / WhatsApp</span>
-                </button>
-              </div>
-            </div>
-
-            {/* PRINTABLE / EXPORTABLE SUPPLIER INVOICE CARD */}
-            <div
-              id="supplier-invoice-card"
-              className="bg-white text-slate-900 rounded-2xl border-2 border-slate-200 p-6 sm:p-8 shadow-md space-y-6 print:border-0 print:shadow-none print:p-0"
+    <AppLayout>
+      <div className="bg-[#F8FAFC] dark:bg-slate-950 min-h-screen py-8">
+        <div className="max-w-[1440px] mx-auto px-6 md:px-8 space-y-6">
+          
+          {/* Top Navigation Back Button */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => router.push('/requests')}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
             >
-              {/* Invoice Header */}
-              <div className="border-b-2 border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-3xl">🏪</span>
-                    <h2 className="text-2xl font-black tracking-tight text-slate-900">RestaurantAI Kitchen</h2>
+              <ArrowLeft className="w-4 h-4" />
+              <span>{language === 'kh' ? 'ត្រឡប់ទៅបញ្ជីវិក្កយបត្រ' : 'Back to Market Orders'}</span>
+            </button>
+
+            {/* View Mode Switcher (PO Table vs Delivery Check-in) */}
+            {order.status !== 'pending' && order.status !== 'rejected' && (
+              <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 p-1 rounded-xl flex items-center gap-1 shadow-2xs">
+                <button
+                  onClick={() => setActiveTab('po')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    activeTab === 'po'
+                      ? 'bg-[#0A8F4D] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>{language === 'kh' ? 'តារាងបញ្ជាទិញ' : 'Purchase Order Table'}</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('checkin'); setCheckingIn(true); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    activeTab === 'checkin'
+                      ? 'bg-[#0A8F4D] text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <PackageCheck className="w-3.5 h-3.5" />
+                  <span>{language === 'kh' ? `ពិនិត្យទំនិញចូល (${verifiedCount}/${order.items.length})` : `Delivery Check-in (${verifiedCount}/${order.items.length})`}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION ①: ORDER HEADER (One Clean Horizontal Card) */}
+          <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-2xl p-6 shadow-2xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              
+              {/* Left Side: Order Number, Status, Dates, Creators */}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    {order.id}
+                  </h1>
+                  {renderStatusBadge(order.status)}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-slate-500 font-normal">
+                  <div className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Order Date: <strong className="text-slate-700 dark:text-slate-300 font-medium">{order.date}</strong></span>
                   </div>
-                  <p className="text-xs font-extrabold text-amber-600 uppercase tracking-widest mt-1">
-                    Morning Market Purchase Order / វិក្កយបត្របញ្ជាទិញ
-                  </p>
-                </div>
-                <div className="text-left sm:text-right bg-slate-100 p-3.5 rounded-xl border border-slate-200">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Order Reference</p>
-                  <p className="text-xl font-black text-slate-900">{order.id}</p>
-                  <p className="text-xs font-semibold text-slate-600 mt-0.5">Date: {order.date}</p>
-                </div>
-              </div>
-
-              {/* Instructions for Supplier */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs font-semibold text-amber-900 flex items-center justify-between flex-wrap gap-2">
-                <span>🙏 <strong>For Supplier:</strong> Please check off items `[✔]` as you pack them at the morning market. / សូមគូសបញ្ជាក់ទំនិញពេលវេចខ្ចប់។</span>
-                <span className="font-black bg-amber-200/60 px-2.5 py-1 rounded-lg text-amber-950">Total: {order.items.length} Items</span>
-              </div>
-
-              {/* Invoice Items Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-slate-300 text-xs font-black text-slate-600 uppercase tracking-wider">
-                      <th className="py-3 px-2 w-14 text-center">Pack</th>
-                      <th className="py-3 px-3">Ingredient Name / ឈ្មោះទំនិញ</th>
-                      <th className="py-3 px-3 text-right">Quantity / ចំនួន</th>
-                      <th className="py-3 px-3 text-right">Unit / ខ្នាត</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 text-sm">
-                    {order.items.map((item, idx) => (
-                      <tr key={item.id || idx} className="hover:bg-slate-50 font-medium">
-                        <td className="py-3.5 px-2 text-center">
-                          <div className="w-6 h-6 border-2 border-slate-400 rounded-md mx-auto flex items-center justify-center bg-white shadow-inner">
-                            {/* Empty checkbox for vendor */}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-3">
-                          <div className="flex items-center gap-2.5">
-                            <span className="p-1.5 bg-slate-100 rounded-lg flex items-center justify-center">
-                              {renderIngredientIcon(item.icon || '', "w-5 h-5 text-slate-700")}
-                            </span>
-                            <div>
-                              <p className="font-bold text-slate-900">{language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}</p>
-                              {item.nameKh && <p className="text-xs text-slate-600 font-semibold">{language === 'kh' ? item.nameEn : item.nameKh}</p>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-3 text-right font-black text-slate-900 text-base">
-                          {item.ordered}
-                        </td>
-                        <td className="py-3.5 px-3 text-right text-xs font-extrabold text-slate-600">
-                          {item.unit}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Invoice Footer / Signatures */}
-              <div className="border-t-2 border-slate-300 pt-8 grid grid-cols-2 gap-8 text-xs font-semibold text-slate-600">
-                <div className="space-y-10">
-                  <p>Requested by: <strong className="text-slate-900 font-black">{order.createdBy}</strong></p>
-                  <div className="border-t border-slate-300 pt-2 w-48">
-                    <p className="text-[11px] text-slate-400 uppercase font-black tracking-wider">Kitchen Staff Signature</p>
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Created By: <strong className="text-slate-700 dark:text-slate-300 font-medium">{order.createdBy}</strong></span>
                   </div>
-                </div>
-                <div className="space-y-10 text-right flex flex-col items-end">
-                  <p>Approved by: <strong className="text-slate-900 font-black">{order.approvedBy || 'Manager'}</strong></p>
-                  <div className="border-t border-slate-300 pt-2 w-48 text-right">
-                    <p className="text-[11px] text-slate-400 uppercase font-black tracking-wider">Supplier / Driver Signature</p>
+                  <div className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Approved By: <strong className="text-slate-700 dark:text-slate-300 font-medium">{order.approvedBy || 'Pending Review'}</strong></span>
                   </div>
                 </div>
               </div>
+
+              {/* Right Side: Estimated Total & Item Count */}
+              <div className="flex md:flex-col items-start md:items-end justify-between md:justify-center border-t md:border-t-0 pt-4 md:pt-0 border-slate-100 dark:border-slate-800">
+                <div className="text-left md:text-right">
+                  <p className="text-[13px] text-slate-500 font-medium uppercase tracking-wider">Estimated Total</p>
+                  <p className="text-3xl font-bold text-[#0A8F4D] tracking-tight mt-0.5">{order.total}</p>
+                </div>
+                <div className="text-right mt-1">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[13px] font-medium text-slate-600 dark:text-slate-300">
+                    <Package className="w-3.5 h-3.5" />
+                    <span>{order.items.length} {language === 'kh' ? 'មុខទំនិញ' : 'Items'}</span>
+                  </span>
+                </div>
+              </div>
+
             </div>
           </div>
-        )}
 
-        {/* STAGE 3: STAFF DELIVERY CHECK-IN & VERIFICATION (Hidden when printing!) */}
-        {order.status !== 'pending' && order.status !== 'rejected' && (
-          <div className="print:hidden bg-card border-2 border-border/80 rounded-2xl p-6 shadow-2xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/60 pb-5">
-              <div className="space-y-1">
-                <h3 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-2">
-                  <PackageCheck className="w-6 h-6 text-primary" />
-                  <span>{language === 'kh' ? 'ពិនិត្យទំនិញចូល' : 'Kitchen Delivery Check-in'}</span>
-                </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground font-medium">
-                  {language === 'kh'
-                    ? 'នៅពេលទំនិញមកដល់ពីផ្សារ សូមពិនិត្យផ្ទៀងផ្ទាត់ទំនិញនីមួយៗខាងក្រោម។ ចុច ✅ ប្រសិនបើត្រឹមត្រូវ ឬ ⚠️ ប្រសិនបើខ្វះ/ខូច។'
-                    : 'When goods arrive from the market, staff verify each item below. Tap ✅ if correct, or ⚠️ if short/damaged.'}
-                </p>
-              </div>
+          {/* SECTION ②: COMPACT STICKY ACTION BAR */}
+          <div className="sticky top-20 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-[#E5E7EB] dark:border-slate-800 rounded-xl p-2.5 shadow-sm flex items-center justify-between flex-wrap gap-3 transition-all">
+            
+            {/* Left Actions: Export & Share Toolbar */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => alert('PNG download initiated')}
+                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+              >
+                <Download className="w-4 h-4 text-slate-500" />
+                <span>Download PNG</span>
+              </button>
 
-              {!checkingIn && order.status !== 'completed' && order.status !== 'discrepancy' && (
-                <button
-                  onClick={() => setCheckingIn(true)}
-                  className="bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white px-5 py-3 rounded-xl font-black text-sm transition-all shadow-md active:scale-95 flex items-center gap-2 flex-shrink-0 whitespace-nowrap"
-                >
-                  <PackageCheck className="w-5 h-5 stroke-[2.5]" />
-                  <span>{language === 'kh' ? 'ចាប់ផ្តើមពិនិត្យ' : 'Start Delivery Check-in'}</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-slate-500" />
+                <span>{language === 'kh' ? 'បោះពុម្ពបញ្ជីទិញ' : 'Print Market List'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleShareTelegram}
+                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+              >
+                <Send className="w-4 h-4 text-sky-500" />
+                <span className="hidden sm:inline">Telegram</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+              >
+                {copied ? <Check className="w-4 h-4 text-[#0A8F4D]" /> : <Copy className="w-4 h-4 text-slate-500" />}
+                <span>{copied ? 'Copied!' : 'Copy Link'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => alert('Edit order mode enabled')}
+                className="h-10 px-3.5 bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium flex items-center gap-2 transition-all shadow-2xs active:scale-95"
+              >
+                <FileEdit className="w-4 h-4 text-slate-500" />
+                <span>Edit Order</span>
+              </button>
             </div>
 
-            {/* Check-in Checklist or Status Summary */}
-            {checkingIn ? (
-              <div className="space-y-6 animate-in fade-in duration-200">
-                {/* Live Progress Bar & Helper */}
-                <div className="bg-secondary/70 p-4 rounded-xl border border-border/80 space-y-2.5">
-                  <div className="flex items-center justify-between text-xs sm:text-sm font-bold">
-                    <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
-                      <span>{language === 'kh' ? 'វឌ្ឍនភាពនៃការពិនិត្យ' : 'Verification Progress'}</span>
-                    </span>
-                    <span className="text-foreground">
-                      <strong className="text-primary-hover dark:text-primary font-black">{verifiedCount}</strong> / {totalItemsCount} {language === 'kh' ? 'មុខទំនិញបានពិនិត្យ' : 'items checked'} ({progressPercent}%)
-                    </span>
+            {/* Right Actions: Manager Authorization (When Pending) */}
+            {order.status === 'pending' && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleReject}
+                  className="h-10 px-4 bg-white dark:bg-slate-800 border border-[#EF4444] text-[#EF4444] hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-all active:scale-95"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>{language === 'kh' ? 'បដិសេធ' : 'Reject Order'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  className="h-10 px-5 bg-[#0A8F4D] hover:bg-[#08733E] text-white rounded-lg text-sm font-medium flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{language === 'kh' ? 'អនុម័តវិក្កយបត្រ' : 'Approve Order'}</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* MAIN 4-COLUMN DESKTOP GRID (75% Content / 25% Sidebar) */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+            
+            {/* LEFT 3 COLUMNS: PURCHASE ORDER ROW & TABLE */}
+            <div className="lg:col-span-3 space-y-6">
+              
+              {/* SECTION ③: PURCHASE ORDER HEADER ROW */}
+              <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-xl px-6 py-4 shadow-2xs flex flex-wrap items-center justify-between gap-6 text-sm">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-[#0A8F4D]/10 flex items-center justify-center">
+                    <Store className="w-5 h-5 text-[#0A8F4D]" />
                   </div>
-                  <div className="w-full bg-background h-3 rounded-full overflow-hidden p-0.5 border border-border">
-                    <div
-                      className="bg-primary h-full rounded-full transition-all duration-300 ease-out"
-                      style={{ width: `${progressPercent}%` }}
-                    />
+                  <div>
+                    <p className="font-bold text-slate-900 dark:text-white text-[15px]">RestaurantAI ERP</p>
+                    <p className="text-[13px] text-slate-500 font-normal">Central Procurement Division</p>
                   </div>
-                  {verifiedCount < totalItemsCount && (
-                    <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground font-medium">
-                      <span>{language === 'kh' ? 'ចុច "គ្រប់ចំនួន" ឬ "ខ្វះ/ខូច" លើទំនិញខាងក្រោម' : 'Tap "Correct" or "Flag Issue" on each card below'}</span>
-                      <button
-                        type="button"
-                        onClick={handleMarkAllRemainingCorrect}
-                        className="text-primary-hover dark:text-primary hover:underline font-bold"
-                      >
-                        ⚡ {language === 'kh' ? 'កំណត់ទំនិញដែលនៅសល់ថាត្រឹមត្រូវទាំងអស់' : 'Mark All Remaining Correct'}
-                      </button>
-                    </div>
-                  )}
                 </div>
 
-                {/* Interactive Item Cards List */}
-                <div className="grid grid-cols-1 gap-3.5">
-                  {order.items.map((item) => {
-                    const data = receivedData[item.id] || { received: item.ordered, isCorrect: true, isVerified: false };
-                    
-                    return (
-                      <div
-                        key={item.id}
-                        className={`p-4 sm:p-5 rounded-2xl border transition-all ${
-                          data.isVerified
-                            ? data.isCorrect
-                              ? 'bg-emerald-500/5 border-emerald-500/40 dark:bg-emerald-950/20 shadow-2xs'
-                              : 'bg-red-500/5 border-red-500/40 dark:bg-red-950/20 shadow-2xs'
-                            : 'bg-card border-border/80 hover:border-border'
-                        }`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex items-center gap-3.5">
-                            <span className="p-2.5 bg-secondary rounded-xl flex-shrink-0 shadow-inner flex items-center justify-center">
-                              {renderIngredientIcon(item.icon || '', "w-7 h-7 text-primary")}
-                            </span>
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-bold text-base text-foreground">
-                                  {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
-                                </h4>
-                                {data.isVerified && (
-                                  <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
-                                    data.isCorrect ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                                  }`}>
-                                    {data.isCorrect ? (language === 'kh' ? '✔ បានផ្ទៀងផ្ទាត់' : '✔ Verified') : (language === 'kh' ? '⚠️ មានបញ្ហា' : '⚠️ Flagged')}
+                <div className="flex items-center gap-6 flex-wrap text-[13px] text-slate-600 dark:text-slate-300">
+                  <div>
+                    <span className="text-slate-400 block text-[11px] uppercase font-semibold">Document</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">Purchase Order / វិក្កយបត្រ</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px] uppercase font-semibold">Supplier</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">Morning Market Vendor / ផ្សារព្រឹក</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px] uppercase font-semibold">Date</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{order.date}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[11px] uppercase font-semibold">Reference</span>
+                    <span className="font-semibold text-[#0A8F4D]">{order.id}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION ④: INGREDIENT TABLE OR DELIVERY CHECK-IN */}
+              {activeTab === 'po' ? (
+                <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-2xl overflow-hidden shadow-2xs">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[950px] text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/90 border-b border-[#E5E7EB] dark:border-slate-800 text-[13px] font-semibold text-slate-500 uppercase tracking-wider">
+                          <th className="py-4 px-4 w-12 text-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedItems.size === order.items.length && order.items.length > 0}
+                              onChange={toggleSelectAll}
+                              className="w-4 h-4 text-[#0A8F4D] rounded border-[#E5E7EB] focus:ring-[#0A8F4D]"
+                            />
+                          </th>
+                          <th className="py-4 px-5 min-w-[260px]">Ingredient / ឈ្មោះទំនិញ</th>
+                          <th className="py-4 px-4 min-w-[150px] whitespace-nowrap">Category</th>
+                          <th className="py-4 px-4 text-right min-w-[130px] whitespace-nowrap">Requested Qty</th>
+                          <th className="py-4 px-4 min-w-[100px] whitespace-nowrap">Unit</th>
+                          <th className="py-4 px-4 text-right min-w-[140px] whitespace-nowrap">Estimated Price</th>
+                          <th className="py-4 px-4 min-w-[200px]">Supplier Notes</th>
+                          <th className="py-4 px-4 text-center min-w-[130px] whitespace-nowrap">Packing Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E5E7EB] dark:divide-slate-800 text-[15px] font-normal text-slate-900 dark:text-white">
+                        {order.items.map((item) => {
+                          const isSelected = selectedItems.has(item.id);
+
+                          return (
+                            <tr
+                              key={item.id}
+                              className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors py-3.5 ${
+                                isSelected ? 'bg-[#0A8F4D]/5 dark:bg-[#0A8F4D]/10 border-l-4 border-[#0A8F4D]' : ''
+                              }`}
+                            >
+                              <td className="py-4 px-4 text-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleSelectItem(item.id)}
+                                  className="w-4 h-4 text-[#0A8F4D] rounded border-[#E5E7EB] focus:ring-[#0A8F4D]"
+                                />
+                              </td>
+                              
+                              <td className="py-4 px-5 min-w-[260px]">
+                                <div className="flex items-center gap-3.5">
+                                  <div className="w-10 h-10 rounded-xl bg-[#0A8F4D]/10 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 shadow-inner">
+                                    {renderIngredientIcon(item.icon || 'Package', "w-5 h-5 text-[#0A8F4D]")}
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <p className="font-semibold text-slate-900 dark:text-white text-[15px] leading-snug">
+                                      {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                    </p>
+                                    {item.nameKh && (
+                                      <p className="text-[13px] text-slate-500 font-normal leading-snug">
+                                        {language === 'kh' ? item.nameEn : item.nameKh}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="py-4 px-4 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                {item.category || 'General Procurement'}
+                              </td>
+
+                              <td className="py-4 px-4 text-right font-bold text-base text-slate-900 dark:text-white whitespace-nowrap">
+                                {item.ordered}
+                              </td>
+
+                              <td className="py-4 px-4 text-sm font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                                {item.unit}
+                              </td>
+
+                              <td className="py-4 px-4 text-right font-semibold text-sm text-slate-900 dark:text-white whitespace-nowrap">
+                                ${item.estimatedPrice ? (item.estimatedPrice * item.ordered).toFixed(2) : '0.00'}
+                                <span className="block text-[11px] text-slate-400 font-normal">
+                                  (${item.estimatedPrice?.toFixed(2) || '0.00'}/{item.unit})
+                                </span>
+                              </td>
+
+                              <td className="py-4 px-4 text-[13px] text-slate-500 italic max-w-xs truncate">
+                                {item.supplierNotes || 'Standard market grade, clean pack'}
+                              </td>
+
+                              <td className="py-4 px-4 text-center whitespace-nowrap">
+                                {item.packingStatus === 'packed' || order.status === 'completed' ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[#16A34A]/10 text-[#16A34A] border border-[#16A34A]/20">
+                                    <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <span>Packed</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    <span>Pending</span>
                                   </span>
                                 )}
-                              </div>
-                              {item.nameKh && <p className="text-xs text-primary-hover dark:text-primary font-bold">{language === 'kh' ? item.nameEn : item.nameKh}</p>}
-                              <div className="text-xs text-muted-foreground font-medium pt-0.5 flex items-center gap-1.5 flex-wrap">
-                                <span>Ordered: <strong className="text-foreground font-bold">{item.ordered}</strong></span>
-                                <input
-                                  type="text"
-                                  list="common-units-list"
-                                  value={data.unit || item.unit}
-                                  onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
-                                  placeholder="unit"
-                                  className="w-16 px-1.5 py-0.5 text-xs font-black text-center bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-primary-hover dark:text-primary shadow-2xs"
-                                  title="Edit unit dynamically"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Fast-Tap Action Buttons */}
-                          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => handleMarkCorrect(item.id, item.ordered)}
-                              className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
-                                data.isVerified && data.isCorrect
-                                  ? 'bg-primary text-primary-foreground shadow-sm scale-[1.02] ring-2 ring-primary/40'
-                                  : 'bg-secondary hover:bg-primary hover:text-primary-foreground text-muted-foreground'
-                              }`}
-                            >
-                              <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                              <span>{language === 'kh' ? `គ្រប់ចំនួន (${item.ordered})` : `Correct (${item.ordered})`}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleToggleDiscrepancy(item.id, item.ordered)}
-                              className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 ${
-                                data.isVerified && !data.isCorrect
-                                  ? 'bg-red-600 text-white shadow-sm scale-[1.02] ring-2 ring-red-600/40'
-                                  : 'bg-secondary hover:bg-red-600 hover:text-white text-muted-foreground'
-                              }`}
-                            >
-                              <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
-                              <span>{language === 'kh' ? 'ខ្វះ/ខូច (មានបញ្ហា)' : 'Flag Issue'}</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Discrepancy inline adjuster if flagged */}
-                        {!data.isCorrect && data.isVerified && (
-                          <div className="mt-4 pt-4 border-t border-red-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-red-500/5 p-4 rounded-xl animate-in fade-in duration-200">
-                            <div>
-                              <label className="block text-xs font-bold text-foreground mb-1.5">
-                                {language === 'kh' ? 'ចំនួនទទួលបានពិតប្រាកដ' : 'Actual Quantity Received'}
-                              </label>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateReceivedQty(item.id, data.received - 1, item.ordered)}
-                                  className="w-10 h-10 rounded-lg border border-border bg-background hover:bg-secondary text-foreground flex items-center justify-center font-bold shadow-2xs active:scale-95"
-                                >
-                                  <Minus className="w-4 h-4" />
-                                </button>
-                                <input
-                                  type="number"
-                                  value={data.received === 0 ? '' : data.received}
-                                  onChange={(e) => handleUpdateReceivedQty(item.id, parseFloat(e.target.value || '0'), item.ordered)}
-                                  min="0"
-                                  step="any"
-                                  max={item.ordered}
-                                  className="w-20 text-center py-2 border border-border rounded-lg text-sm font-black bg-background focus:outline-none focus:ring-2 focus:ring-primary shadow-inner"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdateReceivedQty(item.id, data.received + 1, item.ordered)}
-                                  className="w-10 h-10 rounded-lg border border-border bg-background hover:bg-secondary text-foreground flex items-center justify-center font-bold shadow-2xs active:scale-95"
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </button>
-                                <input
-                                  type="text"
-                                  list="common-units-list"
-                                  value={data.unit || item.unit}
-                                  onChange={(e) => handleUpdateUnit(item.id, e.target.value)}
-                                  placeholder="unit"
-                                  className="w-16 px-1.5 py-1 text-xs font-black text-center bg-background border border-border/80 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-primary-hover dark:text-primary shadow-2xs ml-1"
-                                />
-                              </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-xs font-bold text-foreground mb-1.5">
-                                Reason for Discrepancy / មូលហេតុ
-                              </label>
-                              <select
-                                value={data.reason || DISCREPANCY_REASONS[0]}
-                                onChange={(e) => handleUpdateReason(item.id, e.target.value)}
-                                className="w-full px-3.5 py-2.5 border border-border rounded-xl text-xs font-bold bg-background focus:outline-none focus:ring-2 focus:ring-primary shadow-2xs"
-                              >
-                                {DISCREPANCY_REASONS.map((r) => (
-                                  <option key={r} value={r}>{r}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Final Submit Check-in Buttons */}
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border/80">
-                  <button
-                    onClick={handleSubmitCheckIn}
-                    className="flex-1 bg-primary text-primary-foreground hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white py-4 px-6 rounded-xl font-black text-base transition-all shadow-lg shadow-primary/25 active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                    <span>Submit Delivery Verification Report ({verifiedCount}/{totalItemsCount} checked)</span>
-                  </button>
-                  <button
-                    onClick={() => setCheckingIn(false)}
-                    className="px-6 py-4 border border-border text-foreground rounded-xl font-bold text-sm hover:bg-secondary transition-colors"
-                  >
-                    Cancel / បោះបង់
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Already Verified or Waiting to check in */
-              <div className="space-y-4">
-                {order.status === 'completed' || order.status === 'discrepancy' ? (
-                  <div className="space-y-4">
-                    <div className={`p-5 rounded-2xl border flex items-start sm:items-center gap-4 ${
-                      order.status === 'completed' 
-                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200' 
-                        : 'bg-red-500/10 border-red-500/30 text-red-900 dark:text-red-200'
-                    }`}>
-                      {order.status === 'completed' ? (
-                        <CheckCircle2 className="w-8 h-8 text-emerald-600 flex-shrink-0 mt-0.5 sm:mt-0 stroke-[2.5]" />
-                      ) : (
-                        <AlertTriangle className="w-8 h-8 text-red-600 flex-shrink-0 mt-0.5 sm:mt-0 stroke-[2.5]" />
-                      )}
-                      <div className="space-y-1">
-                        <p className="font-black text-base sm:text-lg">
-                          {order.status === 'completed' 
-                            ? 'Delivery Verified: All Items Correct & Accounted For! / ទំនិញគ្រប់ចំនួនល្អ' 
-                            : 'Delivery Verified: Discrepancies & Shortages Reported! / មានទំនិញខ្វះខូច'}
-                        </p>
-                        <p className="text-xs sm:text-sm opacity-90 font-medium">
-                          The kitchen staff verified and logged this market delivery on {order.date}.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Show discrepancy breakdown if any */}
-                    {order.status === 'discrepancy' && (
-                      <div className="border border-red-500/20 rounded-2xl p-5 bg-background space-y-3 shadow-2xs">
-                        <p className="text-xs font-black text-red-600 uppercase tracking-wider flex items-center gap-1.5">
-                          <AlertCircle className="w-4 h-4 stroke-[2.5]" />
-                          <span>Discrepancy Breakdown / បញ្ជីទំនិញមានបញ្ហា:</span>
-                        </p>
-                        <div className="space-y-2 text-xs sm:text-sm">
-                          {order.items.filter(i => i.received !== undefined && i.received !== i.ordered).map(item => (
-                            <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-2 border-b border-border/40 last:border-0 gap-1">
-                              <span className="font-bold text-foreground flex items-center gap-2">
-                                <span className="text-base">{item.icon || '▫️'}</span>
-                                <span>{item.nameEn} ({item.nameKh})</span>
-                              </span>
-                              <span className="text-red-600 font-extrabold bg-red-500/10 px-2.5 py-1 rounded-lg">
-                                Received {item.received} / {item.ordered} {item.unit} — <i className="font-medium">{item.discrepancyReason}</i>
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end pt-1">
-                      <button
-                        onClick={() => setCheckingIn(true)}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-hover dark:text-primary hover:underline bg-primary/15 px-3.5 py-2 rounded-xl transition-colors"
-                      >
-                        <span>✏️ Edit Delivery Report / កែសម្រួលរបាយការណ៍</span>
-                      </button>
-                    </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                ) : (
-                  <div className="bg-secondary/50 rounded-2xl p-8 text-center space-y-3 border border-dashed border-border">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 text-primary-hover dark:text-primary flex items-center justify-center mx-auto">
-                      <PackageCheck className="w-6 h-6 stroke-[2.5]" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-foreground text-base">Waiting for Morning Market Delivery</h4>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto font-medium">
-                        This order has been approved and sent to suppliers. When the driver arrives at the kitchen, click &quot;Start Delivery Check-in&quot; above to verify items.
+
+                  {/* Table Footer */}
+                  <div className="bg-slate-50 dark:bg-slate-900/60 px-6 py-4 border-t border-[#E5E7EB] dark:border-slate-800 flex items-center justify-between text-sm text-slate-500">
+                    <span>Showing <strong className="text-slate-900 dark:text-white font-semibold">{order.items.length}</strong> procurement items</span>
+                    <span>Selected: <strong className="text-[#0A8F4D] font-semibold">{selectedItems.size}</strong> items</span>
+                  </div>
+                </div>
+              ) : (
+                /* STAGE 3 DELIVERY CHECK-IN WORKFLOW TAB */
+                <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E5E7EB] dark:border-slate-800 pb-5">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <PackageCheck className="w-5 h-5 text-[#0A8F4D]" />
+                        <span>{language === 'kh' ? 'ពិនិត្យទំនិញចូល' : 'Kitchen Delivery Check-in'}</span>
+                      </h3>
+                      <p className="text-xs text-slate-500 font-normal">
+                        {language === 'kh'
+                          ? 'នៅពេលទំនិញមកដល់ពីផ្សារ សូមពិនិត្យផ្ទៀងផ្ទាត់ទំនិញនីមួយៗខាងក្រោម។ ចុច ✅ ប្រសិនបើត្រឹមត្រូវ ឬ ⚠️ ប្រសិនបើខ្វះ/ខូច។'
+                          : 'When goods arrive from the market, staff verify each item below. Tap ✅ if correct, or ⚠️ if short/damaged.'}
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={handleMarkAllRemainingCorrect}
+                      className="h-10 px-4 bg-[#0A8F4D]/10 hover:bg-[#0A8F4D]/20 text-[#0A8F4D] rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{language === 'kh' ? 'កំណត់ទំនិញដែលនៅសល់ថាត្រឹមត្រូវទាំងអស់' : 'Mark All Remaining Correct'}</span>
+                    </button>
                   </div>
-                )}
+
+                  {/* Live Progress Bar */}
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-[#E5E7EB] dark:border-slate-700 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-medium">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#0A8F4D] animate-pulse" />
+                        <span>{language === 'kh' ? 'វឌ្ឍនភាពនៃការពិនិត្យ' : 'Verification Progress'}</span>
+                      </span>
+                      <span className="text-slate-900 dark:text-white font-semibold">
+                        <strong className="text-[#0A8F4D]">{verifiedCount}</strong> / {order.items.length} {language === 'kh' ? 'មុខទំនិញ' : 'items'} checked ({progressPercent}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-[#0A8F4D] h-full rounded-full transition-all duration-300 ease-out"
+                        style={{ width: `${progressPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Interactive Item Verification Cards */}
+                  <div className="grid grid-cols-1 gap-3">
+                    {order.items.map((item) => {
+                      const data = receivedData[item.id] || { received: item.ordered, isCorrect: true, isVerified: false };
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-4 rounded-xl border transition-all ${
+                            data.isVerified
+                              ? data.isCorrect
+                                ? 'bg-[#16A34A]/5 border-[#16A34A]/30 dark:bg-[#16A34A]/10'
+                                : 'bg-[#EF4444]/5 border-[#EF4444]/30 dark:bg-[#EF4444]/10'
+                              : 'bg-white dark:bg-slate-800 border-[#E5E7EB] dark:border-slate-700'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+                                {renderIngredientIcon(item.icon || 'Package', "w-5 h-5 text-[#0A8F4D]")}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">
+                                    {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                  </h4>
+                                  {data.isVerified && (
+                                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                      data.isCorrect ? 'bg-[#16A34A]/10 text-[#16A34A]' : 'bg-[#EF4444]/10 text-[#EF4444]'
+                                    }`}>
+                                      {data.isCorrect ? (language === 'kh' ? '✔ បានផ្ទៀងផ្ទាត់' : '✔ Verified') : (language === 'kh' ? '⚠️ មានបញ្ហា' : '⚠️ Flagged')}
+                                    </span>
+                                  )}
+                                </div>
+                                {item.nameKh && <p className="text-xs text-slate-500 font-normal">{language === 'kh' ? item.nameEn : item.nameKh}</p>}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                              <button
+                                type="button"
+                                onClick={() => handleMarkCorrect(item.id, item.ordered)}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                  data.isVerified && data.isCorrect
+                                    ? 'bg-[#0A8F4D] text-white shadow-xs'
+                                    : 'bg-slate-100 dark:bg-slate-700 hover:bg-[#0A8F4D] hover:text-white text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                                <span>{language === 'kh' ? `គ្រប់ចំនួន (${item.ordered})` : `Correct (${item.ordered})`}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleToggleDiscrepancy(item.id, item.ordered)}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                                  data.isVerified && !data.isCorrect
+                                    ? 'bg-[#EF4444] text-white shadow-xs'
+                                    : 'bg-slate-100 dark:bg-slate-700 hover:bg-[#EF4444] hover:text-white text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <AlertTriangle className="w-4 h-4 stroke-[2.5]" />
+                                <span>{language === 'kh' ? 'ខ្វះ/ខូច (មានបញ្ហា)' : 'Flag Issue'}</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Inline Quantity Adjuster for Discrepancy */}
+                          {!data.isCorrect && data.isVerified && (
+                            <div className="mt-4 pt-4 border-t border-[#EF4444]/20 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#EF4444]/5 p-4 rounded-xl animate-in fade-in duration-200">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                  {language === 'kh' ? 'ចំនួនទទួលបានពិតប្រាកដ' : 'Actual Quantity Received'}
+                                </label>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateReceivedQty(item.id, data.received - 1, item.ordered)}
+                                    className="w-9 h-9 rounded-lg border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold shadow-2xs active:scale-95"
+                                  >
+                                    <Minus className="w-4 h-4" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    value={data.received === 0 ? '' : data.received}
+                                    onChange={(e) => handleUpdateReceivedQty(item.id, parseFloat(e.target.value || '0'), item.ordered)}
+                                    min="0"
+                                    step="any"
+                                    className="w-24 h-9 text-center bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 rounded-lg font-bold text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EF4444]"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateReceivedQty(item.id, data.received + 1, item.ordered)}
+                                    className="w-9 h-9 rounded-lg border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold shadow-2xs active:scale-95"
+                                  >
+                                    <Plus className="w-4 h-4" />
+                                  </button>
+                                  <span className="text-xs font-semibold text-slate-500">{item.unit}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-4 border-t border-[#E5E7EB] dark:border-slate-800 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCompleteCheckIn}
+                      className="h-11 px-6 bg-[#0A8F4D] hover:bg-[#08733E] text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95"
+                    >
+                      <PackageCheck className="w-4 h-4" />
+                      <span>{language === 'kh' ? 'បញ្ចប់ការផ្ទៀងផ្ទាត់ទំនិញ' : 'Complete Delivery Check-in'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* RIGHT COLUMN: STICKY SIDEBAR (Recent Activity) */}
+            <div className="lg:col-span-1 sticky top-24 space-y-6">
+
+              {/* Recent Activity Timeline Card */}
+              <div className="bg-white dark:bg-slate-900 border border-[#E5E7EB] dark:border-slate-800 rounded-2xl p-6 shadow-2xs space-y-4">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white border-b border-[#E5E7EB] dark:border-slate-800 pb-3 flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#0A8F4D]" />
+                  <span>Recent Activity</span>
+                </h3>
+
+                <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200 dark:before:bg-slate-800">
+                  
+                  {/* Event 1: Created */}
+                  <div className="relative">
+                    <span className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 border-2 border-[#0A8F4D] flex items-center justify-center">
+                      <span className="w-2 h-2 rounded-full bg-[#0A8F4D]" />
+                    </span>
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white">Order Created</p>
+                    <p className="text-[11px] text-slate-500 font-normal">Submitted by {order.createdBy}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{order.date} • 05:30 AM</p>
+                  </div>
+
+                  {/* Event 2: Review State */}
+                  <div className="relative">
+                    <span className={`absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 border-2 flex items-center justify-center ${
+                      order.status === 'pending' ? 'border-[#F59E0B]' : 'border-[#0A8F4D]'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${order.status === 'pending' ? 'bg-[#F59E0B] animate-pulse' : 'bg-[#0A8F4D]'}`} />
+                    </span>
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white">
+                      {order.status === 'pending' ? 'Pending Manager Review' : 'Manager Authorization'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-normal">
+                      {order.status === 'pending' ? 'Awaiting review by Manager Dara' : `Approved by ${order.approvedBy || 'Manager Dara'}`}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{order.date} • 06:15 AM</p>
+                  </div>
+
+                  {/* Event 3: Market Dispatch */}
+                  <div className="relative">
+                    <span className={`absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 border-2 flex items-center justify-center ${
+                      order.status === 'sent' || order.status === 'completed' ? 'border-[#0A8F4D]' : 'border-slate-300 dark:border-slate-700'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${order.status === 'sent' || order.status === 'completed' ? 'bg-[#0A8F4D]' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                    </span>
+                    <p className="text-xs font-semibold text-slate-900 dark:text-white">Market Procurement</p>
+                    <p className="text-[11px] text-slate-500 font-normal">
+                      {order.status === 'sent' || order.status === 'completed' ? 'Dispatched to Morning Market Vendor' : 'Ready for dispatch upon approval'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{order.date} • 06:30 AM</p>
+                  </div>
+
+                  {/* Event 4: Delivery Check-in */}
+                  {order.status === 'completed' && (
+                    <div className="relative">
+                      <span className="absolute -left-6 top-1 w-5 h-5 rounded-full bg-white dark:bg-slate-900 border-2 border-[#16A34A] flex items-center justify-center">
+                        <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
+                      </span>
+                      <p className="text-xs font-semibold text-[#16A34A]">Delivery Completed</p>
+                      <p className="text-[11px] text-slate-500 font-normal">All {order.items.length} items verified & checked into inventory</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{order.date} • 08:45 AM</p>
+                    </div>
+                  )}
+
+                </div>
               </div>
-            )}
+
+            </div>
+
           </div>
-        )}
+
+        </div>
       </div>
+
+      {/* ── PRINT SHEET: portalled to body so @media print can isolate it correctly ── */}
+      {printQueue.length > 0 && (
+        <PrintPortal>
+          <PrintSheet orders={printQueue} currency={printCurrency} />
+        </PrintPortal>
+      )}
     </AppLayout>
   );
 }

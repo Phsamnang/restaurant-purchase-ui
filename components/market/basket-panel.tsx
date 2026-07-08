@@ -15,6 +15,7 @@ interface BasketPanelProps {
   onClearBasket: () => void;
   onSubmitOrder: () => void;
   submitting?: boolean;
+  currency?: 'KHR' | 'USD';
 }
 
 export function BasketPanel({
@@ -24,6 +25,7 @@ export function BasketPanel({
   onClearBasket,
   onSubmitOrder,
   submitting = false,
+  currency = 'KHR',
 }: BasketPanelProps) {
   const { t, language } = useTranslation();
   const itemsList = Object.values(orderItems);
@@ -31,6 +33,8 @@ export function BasketPanel({
   
   const totalUnits = itemsList.reduce((acc, curr) => acc + curr.quantity, 0);
   const estimatedTotalCost = itemsList.reduce((acc, curr) => acc + curr.totalCost, 0);
+
+  const formatMoney = (val: number) => currency === 'KHR' ? `${(val * 4000).toLocaleString()} ៛` : `$${val.toFixed(2)}`;
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col h-full max-h-[calc(100vh-6.5rem)] sticky top-24 transition-all">
@@ -117,11 +121,11 @@ export function BasketPanel({
                       </span>
                       <span className="text-slate-400 font-medium">@</span>
                       <span className="text-slate-600 font-bold">
-                        ${item.pricePerUnit.toFixed(2)}
+                        {formatMoney(item.pricePerUnit)}
                       </span>
                       <span className="text-slate-300 font-medium">=</span>
                       <span className="text-slate-900 font-black">
-                        ${item.totalCost.toFixed(2)}
+                        {formatMoney(item.totalCost)}
                       </span>
                     </div>
 
@@ -160,23 +164,27 @@ export function BasketPanel({
 
       {/* Panel Bottom Summary & Checkout CTA */}
       <div className="bg-slate-50 p-5 sm:p-6 border-t border-slate-200 space-y-4 flex-shrink-0">
-        <div className="space-y-2 text-xs sm:text-sm">
-          <div className="flex items-center justify-between text-slate-600 font-medium">
-            <span>{t('basket.totalSelected')}</span>
-            <span className="font-bold text-slate-900">{totalItemsCount} {t('basket.items')}</span>
-          </div>
-          <div className="flex items-center justify-between text-slate-600 font-medium">
-            <span>{t('basket.totalUnits')}</span>
-            <span className="font-bold text-slate-900">{totalUnits} {t('basket.units')}</span>
-          </div>
-          <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
-            <div>
-              <span className="text-sm font-black text-slate-900 block">{t('basket.estCost')}</span>
-              <span className="font-kantumruy text-[11px] text-slate-500 font-normal">{t('basket.estCostSub')}</span>
+        {/* Hero Financial Highlight */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A8F4D] to-[#065F33] p-4 text-white shadow-md shadow-[#0A8F4D]/10">
+          <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 blur-xl pointer-events-none" />
+          <div className="relative z-10 space-y-2">
+            <div className="flex items-center justify-between text-white/80 text-xs font-semibold uppercase tracking-wider">
+              <span>{t('basket.estCost')}</span>
+              <span className="bg-white/20 px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-2xs">
+                {totalItemsCount} {t('basket.items')}
+              </span>
             </div>
-            <span className="text-2xl sm:text-3xl font-black text-slate-900 bg-primary/20 px-3.5 py-1 rounded-xl border border-primary/30">
-              ${estimatedTotalCost.toFixed(2)}
-            </span>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-3xl font-black tracking-tight text-white drop-shadow-xs">
+                {formatMoney(estimatedTotalCost)}
+              </span>
+              <span className="text-xs font-medium text-emerald-100">
+                {totalUnits} {t('basket.units')}
+              </span>
+            </div>
+            <p className="font-kantumruy text-[11px] text-emerald-100 pt-1 border-t border-white/15">
+              {t('basket.estCostSub')}
+            </p>
           </div>
         </div>
 

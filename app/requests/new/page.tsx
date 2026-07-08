@@ -58,6 +58,7 @@ export default function NewMarketOrderPage() {
   // Checkout Review Form State
   const [deliveryDate, setDeliveryDate] = useState<string>('');
   const [priority, setPriority] = useState<'normal' | 'urgent' | 'scheduled'>('normal');
+  const [currency, setCurrency] = useState<'KHR' | 'USD'>('KHR');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(false);
 
@@ -164,14 +165,18 @@ export default function NewMarketOrderPage() {
 
     try {
       const totalCost = itemsList.reduce((sum, item) => sum + item.totalCost, 0);
+      const totalStr = currency === 'KHR'
+        ? `${(totalCost * 4000).toLocaleString()} ៛`
+        : `$${totalCost.toFixed(2)}`;
       
       const newOrder: OrderRequest = {
         id: `ORD-${Date.now().toString().slice(-6)}`,
         status: 'pending',
         date: new Date().toISOString().split('T')[0],
-        total: `$${totalCost.toFixed(2)}`,
+        total: totalStr,
+        currency: currency,
         createdBy: user.name,
-        notes: `Market Shopping List submitted by ${user.name} (${itemsList.length} items selected). Delivery Date: ${deliveryDate}, Priority: ${priority}`,
+        notes: `Market Shopping List submitted by ${user.name} (${itemsList.length} items selected). Delivery Date: ${deliveryDate}, Priority: ${priority}, Currency: ${currency}`,
         items: itemsList.map((item, idx) => ({
           id: `item-${idx + 1}`,
           nameEn: item.ingredient.nameEn,
@@ -212,6 +217,8 @@ export default function NewMarketOrderPage() {
   const totalUnitsCount = itemsList.reduce((acc, curr) => acc + curr.quantity, 0);
   const estimatedTotalCost = itemsList.reduce((acc, curr) => acc + curr.totalCost, 0);
 
+  const formatMoney = (val: number) => currency === 'KHR' ? `${(val * 4000).toLocaleString()} ៛` : `$${val.toFixed(2)}`;
+
   return (
     <AppLayout title={t('market.title')} subtitle={t('market.subtitle')}>
       <div className="max-w-[1440px] mx-auto pb-24 space-y-6">
@@ -241,6 +248,32 @@ export default function NewMarketOrderPage() {
             </div>
 
             <div className="flex items-center gap-3 self-end sm:self-auto">
+              {/* Currency switcher pill */}
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setCurrency('KHR')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currency === 'KHR'
+                      ? 'bg-white text-orange-600 shadow-sm border border-slate-200/60 font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  ៛ KHR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrency('USD')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currency === 'USD'
+                      ? 'bg-white text-blue-600 shadow-sm border border-slate-200/60 font-black'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  $ USD
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setShowCustomModal(true)}
@@ -313,6 +346,7 @@ export default function NewMarketOrderPage() {
               onClearBasket={handleClearBasket}
               onSubmitOrder={() => setShowReviewModal(true)}
               submitting={submitting}
+              currency={currency}
             />
           </div>
         </div>
@@ -337,7 +371,7 @@ export default function NewMarketOrderPage() {
               {totalItemCount === 0 ? t('basket.listEmpty') : `${totalItemCount} ${t('basket.items')} (${totalUnitsCount} ${t('basket.units')})`}
             </span>
             <span className="text-lg font-black text-white truncate block">
-              ${estimatedTotalCost.toFixed(2)} <span className="text-xs font-normal text-slate-400">{t('basket.estTotal')}</span>
+              {formatMoney(estimatedTotalCost)} <span className="text-xs font-normal text-slate-400">{t('basket.estTotal')}</span>
             </span>
           </div>
         </div>
@@ -379,6 +413,7 @@ export default function NewMarketOrderPage() {
               setShowReviewModal(true);
             }}
             submitting={submitting}
+            currency={currency}
           />
         </div>
       </Modal>
@@ -533,7 +568,7 @@ export default function NewMarketOrderPage() {
         ) : (
           <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
             {/* Delivery Date & Priority Configuration */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200">
               <div>
                 <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
                   <Calendar className="w-4 h-4 text-primary" />
@@ -563,6 +598,37 @@ export default function NewMarketOrderPage() {
                   <option value="scheduled">{t('review.priorityScheduled')}</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
+                  <span className="text-primary font-black">៛/$</span>
+                  <span>Currency / រូបិយប័ណ្ណ</span>
+                </label>
+                <div className="flex items-center bg-slate-200/70 p-1 rounded-xl h-11">
+                  <button
+                    type="button"
+                    onClick={() => setCurrency('KHR')}
+                    className={`flex-1 h-full rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      currency === 'KHR'
+                        ? 'bg-white text-orange-600 shadow-sm font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    រៀល (KHR)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrency('USD')}
+                    className={`flex-1 h-full rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      currency === 'USD'
+                        ? 'bg-white text-blue-600 shadow-sm font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    $ (USD)
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Selected Items Summary List */}
@@ -584,12 +650,12 @@ export default function NewMarketOrderPage() {
                           {language === 'kh' ? (item.ingredient.nameKh || item.ingredient.nameEn) : item.ingredient.nameEn}
                         </span>
                         <span className="text-[11px] font-medium text-slate-400">
-                          {item.quantity} {item.unit} × ${item.pricePerUnit.toFixed(2)} • {item.supplier || 'Morning Wet Market'}
+                          {item.quantity} {item.unit} × {formatMoney(item.pricePerUnit)} • {item.supplier || 'Morning Wet Market'}
                         </span>
                       </div>
                     </div>
                     <span className="font-black text-sm text-slate-900 flex-shrink-0">
-                      ${item.totalCost.toFixed(2)}
+                      {formatMoney(item.totalCost)}
                     </span>
                   </div>
                 ))}
@@ -607,7 +673,7 @@ export default function NewMarketOrderPage() {
                 </span>
               </div>
               <span className="text-2xl sm:text-3xl font-black text-slate-900 bg-primary/20 px-3 py-1 rounded-xl border border-primary/30">
-                ${estimatedTotalCost.toFixed(2)}
+                {formatMoney(estimatedTotalCost)}
               </span>
             </div>
 

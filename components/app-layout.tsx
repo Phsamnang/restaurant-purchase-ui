@@ -128,18 +128,6 @@ export function AppLayout({ children, title, subtitle }: AppLayoutProps) {
           {children}
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-border bg-secondary/40 px-4 py-6 mt-auto print:hidden">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-muted-foreground">
-          <p>&copy; 2026 RestaurantAI Enterprise ERP. Built for Cambodian restaurant procurement.</p>
-          <div className="flex items-center gap-4">
-            <span>Dynamic i18n Translation ({language.toUpperCase()})</span>
-            <span>•</span>
-            <span>Mobile & Touch Optimized</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
