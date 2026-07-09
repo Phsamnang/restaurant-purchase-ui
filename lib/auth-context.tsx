@@ -6,15 +6,15 @@ export interface User {
   id: string;
   name: string;
   username: string;
-  role: 'chef' | 'receiver' | 'admin';
+  role: 'manager' | 'staff' | 'service' | 'chef' | 'receiver' | 'admin';
   restaurantId: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  register: (name: string, username: string, password: string) => Promise<void>;
+  login: (username: string, password?: string, customRole?: User['role'], customName?: string) => Promise<void>;
+  register: (name: string, username: string, password: string, customRole?: User['role']) => Promise<void>;
   logout: () => void;
 }
 
@@ -33,31 +33,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
-    // Mock login - in real app, call API
+  const login = async (username: string, password = '', customRole?: User['role'], customName?: string) => {
+    let assignedRole: User['role'] = customRole || 'staff';
+    let assignedName = customName || username || 'Kitchen Staff';
+
+    if (!customRole) {
+      const lower = username.toLowerCase();
+      if (lower.includes('manager') || lower.includes('admin') || lower.includes('alex')) {
+        assignedRole = 'manager';
+        assignedName = 'Manager Alex';
+      } else if (lower.includes('service') || lower.includes('foh') || lower.includes('bar') || lower.includes('sophea')) {
+        assignedRole = 'service';
+        assignedName = 'Sophea Bar (Service Lead)';
+      } else {
+        assignedRole = 'staff';
+        assignedName = 'Chef John (Kitchen Lead)';
+      }
+    }
+
     const mockUser: User = {
-      id: '1',
-      name: 'Chef John',
+      id: `user-${Date.now()}`,
+      name: assignedName,
       username,
-      role: 'chef',
+      role: assignedRole,
       restaurantId: 'rest-1',
     };
     setUser(mockUser);
     localStorage.setItem('user', JSON.stringify(mockUser));
   };
 
-  const register = async (name: string, username: string, password: string) => {
-    // Mock register - in real app, call API
+  const register = async (name: string, username: string, password: string, customRole: User['role'] = 'staff') => {
     const mockUser: User = {
-      id: '2',
+      id: `user-${Date.now()}`,
       name,
       username,
-      role: 'chef',
+      role: customRole,
       restaurantId: 'rest-1',
     };
     setUser(mockUser);
     localStorage.setItem('user', JSON.stringify(mockUser));
   };
+
 
   const logout = () => {
     setUser(null);

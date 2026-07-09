@@ -194,7 +194,7 @@ export function OrderModal({
                   </span>
                 )}
               </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white line-clamp-2 leading-tight break-words">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-white line-clamp-2 leading-tight break-words">
                 {mainName}
               </h2>
               {subName && (
@@ -261,7 +261,7 @@ export function OrderModal({
                     value={pricePerUnit === 0 ? '' : pricePerUnit}
                     onChange={(e) => setPricePerUnit(parseFloat(e.target.value) || 0)}
                     placeholder={unit === 'KHR' ? "0" : "0.00"}
-                    className="w-full h-14 pl-10 pr-4 bg-slate-50 border border-slate-300 rounded-xl font-black text-2xl text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-2xs"
+                    className="w-full h-12 pl-10 pr-4 bg-slate-50 border border-slate-300 rounded-xl font-bold text-lg sm:text-xl text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-2xs"
                   />
                 </div>
 

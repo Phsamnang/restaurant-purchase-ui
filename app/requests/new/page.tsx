@@ -3,18 +3,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppLayout } from '@/components/app-layout';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth, User } from '@/lib/auth-context';
 import { useTranslation } from '@/lib/i18n';
 import { Modal } from '@/components/shared/modal';
 import { 
-  Store, Search, Filter, Plus, Calendar, Clock, ShoppingCart, 
-  CheckCircle2, AlertCircle, ArrowRight, LayoutGrid, Package, ChevronRight,
-  Beef, GlassWater, DollarSign, Sparkles
+  Store, Search, Plus, Calendar, Clock, ShoppingCart, 
+  CheckCircle2, AlertCircle, ArrowRight, Package,
+  GlassWater, DollarSign, ShieldCheck, Utensils, UserCheck,
+  Banknote, Crown, Send
 } from 'lucide-react';
 
 import { 
-  IngredientItem, OrderItem, MARKET_CATEGORIES, DEFAULT_MARKET_CATALOG,
-  STUFF_CATEGORIES, DEFAULT_STUFF_CATALOG, ALL_AVAILABLE_UNITS, ALL_STUFF_UNITS
+  IngredientItem, OrderItem, ALL_CATEGORIES, ALL_CATALOG, MARKET_CATEGORIES
 } from '@/types/market';
 import { getOrders, saveOrder, OrderRequest } from '@/lib/orders';
 import { CategoryBar } from '@/components/market/category-bar';
@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 export default function NewMarketOrderPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const { t, tBi, language } = useTranslation();
+  const { t, language } = useTranslation();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -35,32 +35,80 @@ export default function NewMarketOrderPage() {
     }
   }, [user, router]);
 
-  // Request Mode State: 'glossary' (food ingredients) vs 'stuff' (glassware/supplies/tip advance)
-  const [requestMode, setRequestMode] = useState<'glossary' | 'stuff'>('glossary');
+  // Active Role State ('manager' | 'staff' | 'service')
+  const [requesterRole, setRequesterRole] = useState<'manager' | 'staff' | 'service'>('staff');
+  const [requestedFrom, setRequestedFrom] = useState<'manager' | 'purchaser' | 'accounting'>('purchaser');
 
-  // Master Catalog States & Custom Items
+  // Auto-initialize role based on logged-in user
+  useEffect(() => {
+    if (user && (user.role === 'manager' || user.role === 'staff' || user.role === 'service')) {
+      const role = user.role as 'manager' | 'staff' | 'service';
+      setRequesterRole(role);
+      if (role === 'service' || role === 'manager') {
+        setRequestedFrom('manager');
+      } else {
+        setRequestedFrom('purchaser');
+      }
+    }
+  }, [user]);
+
+  // Unified Catalog States
   const [customItems, setCustomItems] = useState<IngredientItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Active Categories & Active Catalog computed dynamically based on requestMode
   const activeCategories = useMemo(() => {
-    return requestMode === 'glossary' ? MARKET_CATEGORIES : STUFF_CATEGORIES;
-  }, [requestMode]);
+    if (requesterRole === 'staff') {
+      const kitchenCatNames = [
+        'all', 'Meat & Poultry', 'Seafood & Fish', 'Vegetables & Herbs', 
+        'Sauces & Pantry', 'Rice & Noodles', 'Kitchen Equipment & Tools', 'Petty Cash & Tip Advance', 'Cleaning & Sanitation'
+      ];
+      return ALL_CATEGORIES.filter(c => kitchenCatNames.includes(c.id));
+    } else if (requesterRole === 'service') {
+      const serviceCatNames = [
+        'all', 'Beverages & Ice', 'Glassware & Tableware', 
+        'Petty Cash & Tip Advance', 'Cleaning & Sanitation'
+      ];
+      return ALL_CATEGORIES.filter(c => serviceCatNames.includes(c.id));
+    }
+    return ALL_CATEGORIES;
+  }, [requesterRole]);
 
   const activeCatalog = useMemo(() => {
-    const base = requestMode === 'glossary' ? DEFAULT_MARKET_CATALOG : DEFAULT_STUFF_CATALOG;
     const filteredCustom = customItems.filter(i => 
-      (i.requestType || 'glossary') === requestMode &&
       !i.nameEn.toLowerCase().includes('fff') &&
       !i.nameEn.toLowerCase().includes('gggg') &&
       !i.id.toLowerCase().includes('fff') &&
       !i.id.toLowerCase().includes('gggg')
     );
-    return [...filteredCustom, ...base];
-  }, [requestMode, customItems]);
+    const combined = [...filteredCustom, ...ALL_CATALOG];
+    
+    // Filter by role category scope when not manager
+    const allowedCatIds = activeCategories.map(c => c.id);
+    if (requesterRole === 'manager') return combined;
+    return combined.filter(item => allowedCatIds.includes(item.category) || item.category === 'all');
+  }, [customItems, requesterRole, activeCategories]);
 
-  // Basket State: Map ingredientId -> OrderItem
+  // Handle Role Switching
+  const handleRoleChange = (role: 'manager' | 'staff' | 'service') => {
+    setRequesterRole(role);
+    setSelectedCategory('all');
+    if (role === 'service') {
+      setCustomCategory('Glassware & Tableware');
+      setCurrency('USD');
+      setRequestedFrom('manager');
+    } else if (role === 'staff') {
+      setCustomCategory('Meat & Poultry');
+      setCurrency('KHR');
+      setRequestedFrom('purchaser');
+    } else {
+      setCustomCategory('Petty Cash & Tip Advance');
+      setCurrency('USD');
+      setRequestedFrom('manager');
+    }
+  };
+
+  // Basket State
   const [orderItems, setOrderItems] = useState<Record<string, OrderItem>>({});
 
   // Active Modal States
@@ -70,22 +118,29 @@ export default function NewMarketOrderPage() {
   } | null>(null);
 
   const [showCustomModal, setShowCustomModal] = useState<boolean>(false);
-  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [showMobileBasket, setShowMobileBasket] = useState<boolean>(false);
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
 
   // Custom Item Form State
   const [customNameEn, setCustomNameEn] = useState('');
   const [customNameKh, setCustomNameKh] = useState('');
-  const [customCategory, setCustomCategory] = useState<string>(MARKET_CATEGORIES[1]?.id || 'Meat & Poultry');
+  const [customCategory, setCustomCategory] = useState<string>('Meat & Poultry');
   const [customUnit, setCustomUnit] = useState('kg');
   const [customPrice, setCustomPrice] = useState<number>(0);
 
-  // Checkout Review Form State
+  // Cash / Money Advance Request with Reason State
+  const [showMoneyModal, setShowMoneyModal] = useState<boolean>(false);
+  const [moneyPurpose, setMoneyPurpose] = useState<string>('Tip Advance Payout (ដកប្រាក់រង្វាន់ Tip មុនកាលកំណត់)');
+  const [moneyAmount, setMoneyAmount] = useState<number>(0);
+  const [moneyCurrency, setMoneyCurrency] = useState<'KHR' | 'USD'>('USD');
+  const [moneyReason, setMoneyReason] = useState<string>('');
+
+  // Global Request Config (Top Bar)
   const [deliveryDate, setDeliveryDate] = useState<string>('');
-  const [priority, setPriority] = useState<'normal' | 'urgent' | 'scheduled'>('normal');
+  const [priority, setPriority] = useState<'normal' | 'urgent'>('normal');
   const [currency, setCurrency] = useState<'KHR' | 'USD'>('KHR');
+  
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(false);
 
   // Initialize delivery date
   useEffect(() => {
@@ -97,22 +152,7 @@ export default function NewMarketOrderPage() {
     setDeliveryDate(`${yyyy}-${mm}-${dd}`);
   }, []);
 
-  // When requestMode switches, reset category filter and default form options
-  const handleModeChange = (mode: 'glossary' | 'stuff') => {
-    setRequestMode(mode);
-    setSelectedCategory('all');
-    if (mode === 'stuff') {
-      setCustomCategory(STUFF_CATEGORIES[1]?.id || 'Glassware & Tableware');
-      setCustomUnit('piece');
-      setCurrency('USD'); // Default stuff to USD easily
-    } else {
-      setCustomCategory(MARKET_CATEGORIES[1]?.id || 'Meat & Poultry');
-      setCustomUnit('kg');
-      setCurrency('KHR');
-    }
-  };
-
-  // Filter Ingredients based on Category and Search Query (Bilingual search)
+  // Filter Ingredients based on Category and Search Query
   const filteredIngredients = useMemo(() => {
     return activeCatalog.filter((item) => {
       const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
@@ -129,25 +169,15 @@ export default function NewMarketOrderPage() {
     });
   }, [activeCatalog, selectedCategory, searchQuery]);
 
-  // Handle clicking an ingredient row
-  const handleSelectIngredient = (ingredient: IngredientItem) => {
-    const existing = orderItems[ingredient.id];
-    setActiveModalItem({
-      ingredient,
-      orderItem: existing,
-    });
-  };
-
-  // Save item from Modal into Basket
-  const handleSaveOrderItem = (item: OrderItem) => {
+  // Basket Operations
+  const handleInlineAdd = (item: OrderItem) => {
     setOrderItems((prev) => ({
       ...prev,
       [item.ingredient.id]: item,
     }));
   };
 
-  // Remove item from Basket
-  const handleRemoveOrderItem = (ingredientId: string) => {
+  const handleInlineRemove = (ingredientId: string) => {
     setOrderItems((prev) => {
       const next = { ...prev };
       delete next[ingredientId];
@@ -155,7 +185,6 @@ export default function NewMarketOrderPage() {
     });
   };
 
-  // Clear entire Basket
   const handleClearBasket = () => {
     if (confirm('Are you sure you want to clear your shopping list? / តើអ្នកពិតជាចង់លុបបញ្ជីមែនទេ?')) {
       setOrderItems({});
@@ -167,24 +196,24 @@ export default function NewMarketOrderPage() {
     e.preventDefault();
     if (!customNameEn.trim()) return;
 
+    const isCashCategory = customCategory === 'Petty Cash & Tip Advance';
     const newId = `custom-${Date.now()}`;
+    
     const newIngredient: IngredientItem = {
       id: newId,
       nameEn: customNameEn.trim(),
       nameKh: customNameKh.trim() || customNameEn.trim(),
       category: customCategory,
-      defaultUnit: customCategory === 'Petty Cash & Tip Advance' ? currency : customUnit,
+      defaultUnit: isCashCategory ? currency : customUnit,
       defaultPrice: Number(customPrice) || 0,
-      allowedUnits: customCategory === 'Petty Cash & Tip Advance'
-        ? ['USD', 'KHR']
-        : (requestMode === 'stuff' 
-            ? ['piece', 'set', 'box', 'pack', 'bottle', 'gallon', 'tank', 'pair', 'roll']
-            : ['kg', 'gram', 'piece', 'pack', 'box', 'can', 'bottle', 'bunch', 'liter']),
-      iconName: requestMode === 'stuff' ? 'GlassWater' : 'Sparkles',
+      allowedUnits: isCashCategory 
+        ? ['USD', 'KHR'] 
+        : ['kg', 'gram', 'piece', 'pack', 'box', 'bottle', 'set', 'gallon'],
+      iconName: isCashCategory ? 'DollarSign' : 'Package',
       currentStock: 0,
       parStock: 10,
       isCustom: true,
-      requestType: requestMode,
+      requestType: isCashCategory ? 'stuff' : 'glossary',
     };
 
     setCustomItems((prev) => [newIngredient, ...prev]);
@@ -196,23 +225,106 @@ export default function NewMarketOrderPage() {
       unit: newIngredient.defaultUnit,
       pricePerUnit: newIngredient.defaultPrice,
       totalCost: newIngredient.defaultPrice,
-      supplier: customCategory === 'Petty Cash & Tip Advance' ? 'Staff Member / Beneficiary' : (requestMode === 'stuff' ? 'Standard Equipment Vendor' : 'Local Market Vendor'),
+      supplier: isCashCategory ? `Staff Member (${requesterRole.toUpperCase()})` : 'Local Market Vendor',
       notes: customNameKh.trim() || customNameEn.trim(),
     };
 
-    handleSaveOrderItem(newOrderItem);
+    handleInlineAdd(newOrderItem);
 
     setCustomNameEn('');
     setCustomNameKh('');
     setCustomPrice(0);
   };
 
+  // Handle Creating Cash / Money Request with mandatory Reason
+  const handleCreateMoneyRequest = (e: React.FormEvent, directSubmit: boolean) => {
+    e.preventDefault();
+    if (!moneyAmount || moneyAmount <= 0) {
+      alert(language === 'kh' ? 'សូមបញ្ចូលចំនួនប្រាក់!' : 'Please enter a valid amount!');
+      return;
+    }
+    if (!moneyReason || moneyReason.trim().length < 3) {
+      alert(language === 'kh' ? 'សូមបញ្ជាក់មូលហេតុដកប្រាក់ឲ្យបានច្បាស់!' : 'Please enter a clear reason / justification for this money request!');
+      return;
+    }
+
+    try {
+      if (!user) return;
+      setSubmitting(true);
+      const totalStr = moneyCurrency === 'KHR'
+        ? `${Math.round(moneyAmount).toLocaleString()} ៛`
+        : `$${moneyAmount.toFixed(2)}`;
+      const roleLabel = requesterRole === 'manager' ? 'Manager' : (requesterRole === 'staff' ? 'Kitchen Staff' : 'Service & FOH');
+      
+      const newOrder: OrderRequest = {
+        id: `ORD-${Date.now().toString().slice(-6)}`,
+        status: 'pending',
+        date: new Date().toISOString().split('T')[0],
+        total: totalStr,
+        currency: moneyCurrency,
+        requestType: 'stuff',
+        requesterRole: requesterRole,
+        requestedFrom: 'manager',
+        createdBy: `${user.name} [${roleLabel}] → Req from Manager`,
+        notes: `Money Request Reason: ${moneyReason.trim()} (${moneyPurpose})`,
+        items: [{
+          id: 'item-cash-1',
+          nameEn: moneyPurpose,
+          nameKh: moneyPurpose,
+          unit: moneyCurrency,
+          ordered: 1,
+          icon: 'banknote',
+          category: 'Petty Cash & Tip Advance',
+          estimatedPrice: Number(moneyAmount),
+          supplierNotes: `Reason: ${moneyReason.trim()}`,
+        }],
+      };
+      
+      if (directSubmit) {
+        saveOrder(newOrder);
+        setShowMoneyModal(false);
+        setMoneyReason('');
+        setMoneyAmount(0);
+        router.push('/requests');
+      } else {
+        const fakeIngredient: IngredientItem = {
+          id: `CASH-${Date.now().toString().slice(-4)}`,
+          nameEn: `${moneyPurpose} (${moneyCurrency} ${moneyAmount})`,
+          nameKh: moneyPurpose,
+          category: 'Petty Cash & Tip Advance',
+          defaultUnit: moneyCurrency,
+          defaultPrice: Number(moneyAmount),
+          allowedUnits: ['USD', 'KHR'],
+          iconName: 'banknote',
+          currentStock: 0,
+          parStock: 10,
+          isCustom: true,
+          requestType: 'stuff',
+        };
+        const cashOrderItem: OrderItem = {
+          ingredient: fakeIngredient,
+          quantity: 1,
+          unit: moneyCurrency,
+          pricePerUnit: Number(moneyAmount),
+          totalCost: Number(moneyAmount),
+          supplierNotes: `Reason: ${moneyReason.trim()}`
+        };
+        handleInlineAdd(cashOrderItem);
+        setShowMoneyModal(false);
+        setMoneyReason('');
+        setMoneyAmount(0);
+      }
+    } catch (err) {
+      alert('Error saving cash request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const isCashItem = (item: OrderItem) => {
     return item.ingredient.category === 'Petty Cash & Tip Advance' ||
            item.ingredient.id.toLowerCase().includes('tip') ||
            item.ingredient.id.toLowerCase().includes('cash') ||
-           item.ingredient.id.toLowerCase().includes('money') ||
-           item.ingredient.id.toLowerCase().includes('reimburse') ||
            item.ingredient.nameEn.toLowerCase().includes('cash') ||
            item.ingredient.nameEn.toLowerCase().includes('tip');
   };
@@ -231,7 +343,7 @@ export default function NewMarketOrderPage() {
     }, 0);
   };
 
-  // Submit Final Market List
+  // Direct Submit from Basket Panel
   const handleSubmitOrder = () => {
     const itemsList = Object.values(orderItems);
     if (itemsList.length === 0 || !user) return;
@@ -244,174 +356,262 @@ export default function NewMarketOrderPage() {
         ? `${Math.round(finalTotalCost).toLocaleString()} ៛`
         : `$${finalTotalCost.toFixed(2)}`;
       
+      const hasCashItems = itemsList.some(isCashItem);
+      const roleLabel = requesterRole === 'manager' ? 'Manager' : (requesterRole === 'staff' ? 'Kitchen Staff' : 'Service & FOH');
+      const targetLabel = requestedFrom === 'manager' ? 'Manager' : (requestedFrom === 'purchaser' ? 'Purchaser' : 'Accounting');
+      
       const newOrder: OrderRequest = {
         id: `ORD-${Date.now().toString().slice(-6)}`,
         status: 'pending',
         date: new Date().toISOString().split('T')[0],
         total: totalStr,
         currency: currency,
-        requestType: requestMode,
-        createdBy: user.name,
-        notes: `${requestMode === 'stuff' ? 'Supplies, Glassware & Cash Requisition' : 'Market Shopping List'} submitted by ${user.name} (${itemsList.length} items selected). Delivery Date: ${deliveryDate}, Priority: ${priority}, Currency: ${currency}`,
+        requestType: hasCashItems ? 'stuff' : 'glossary',
+        requesterRole: requesterRole,
+        requestedFrom: requestedFrom,
+        createdBy: `${user.name} [${roleLabel}] → Req from ${targetLabel}`,
+        notes: `Requisition submitted via ${roleLabel} workflow (${itemsList.length} items). Target Delivery: ${deliveryDate}, Priority: ${priority}, Requested from: ${targetLabel}.`,
         items: itemsList.map((item, idx) => ({
           id: `item-${idx + 1}`,
           nameEn: item.ingredient.nameEn,
           nameKh: item.ingredient.nameKh || item.ingredient.nameEn,
           unit: item.unit,
-          ordered: item.quantity,
+          ordered: isCashItem(item) ? 1 : item.quantity,
           icon: item.ingredient.iconName,
+          category: item.ingredient.category,
+          estimatedPrice: item.pricePerUnit || item.totalCost,
+          supplierNotes: item.supplierNotes || (isCashItem(item) ? 'Reason: Cash/Tip Advance' : undefined),
         })),
       };
       
       saveOrder(newOrder);
-
-      setSubmitting(false);
-      setSubmittedSuccess(true);
-
-      setTimeout(() => {
-        router.push('/requests');
-      }, 1200);
+      setShowReviewModal(false);
+      router.push('/requests');
     } catch (err) {
-      alert('Error submitting market order / មានបញ្ហាក្នុងការបញ្ជូន');
+      alert('Error submitting request / មានបញ្ហាក្នុងការបញ្ជូន');
       setSubmitting(false);
     }
   };
 
+  const itemsList = Object.values(orderItems);
+  const totalItemCount = itemsList.length;
+  const totalUnitsCount = itemsList.reduce((acc, curr) => acc + (isCashItem(curr) ? 1 : curr.quantity), 0);
+  const estimatedTotalCost = useMemo(() => calculateTotalCostInCurrency(itemsList, currency), [itemsList, currency]);
+
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 font-bold">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <span>{t('common.loading')}</span>
-        </div>
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  const itemsList = Object.values(orderItems);
-  const totalItemCount = itemsList.length;
-  const totalUnitsCount = itemsList.reduce((acc, curr) => acc + curr.quantity, 0);
-  const estimatedTotalCost = useMemo(() => calculateTotalCostInCurrency(itemsList, currency), [itemsList, currency]);
-
-  const formatMoney = (val: number) => currency === 'KHR' ? `${(val * 4000).toLocaleString()} ៛` : `$${val.toFixed(2)}`;
-
   return (
     <AppLayout 
-      title={requestMode === 'stuff' ? t('market.stuffTitle') : t('market.title')} 
-      subtitle={requestMode === 'stuff' ? t('market.stuffSubtitle') : t('market.subtitle')}
+      title={t('market.title')} 
+      subtitle={t('market.subtitle')}
     >
       <div className="max-w-[1440px] mx-auto pb-24 space-y-6">
-        {/* SECTION 1: HEADER & FILTER NAVIGATION */}
+        
+        {/* TOP CONFIG STRIP */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end relative z-20">
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span>Target Date <span className="text-red-500">*</span></span>
+            </label>
+            <input
+              type="date"
+              required
+              value={deliveryDate}
+              onChange={(e) => setDeliveryDate(e.target.value)}
+              className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-primary" />
+              <span>Priority</span>
+            </label>
+            <Select value={priority} onValueChange={(val: 'normal' | 'urgent') => setPriority(val)}>
+              <SelectTrigger className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary shadow-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl z-50">
+                <SelectItem value="normal">Normal / ធម្មតា</SelectItem>
+                <SelectItem value="urgent">Urgent / បន្ទាន់</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <UserCheck className="w-4 h-4 text-primary" />
+              <span>Request From (Target)</span>
+            </label>
+            <Select value={requestedFrom} onValueChange={(val: 'manager' | 'purchaser' | 'accounting') => setRequestedFrom(val)}>
+              <SelectTrigger className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary shadow-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl z-50">
+                <SelectItem value="manager">Restaurant Manager (Approval / Cash)</SelectItem>
+                <SelectItem value="purchaser">Morning Market Purchaser</SelectItem>
+                <SelectItem value="accounting">Accounting & Finance</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
+              <span className="text-primary font-black">៛/$</span>
+              <span>Currency</span>
+            </label>
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold h-11">
+              <button
+                type="button"
+                onClick={() => setCurrency('USD')}
+                className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  currency === 'USD' ? 'bg-white text-blue-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                $ USD
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrency('KHR')}
+                className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                  currency === 'KHR' ? 'bg-white text-orange-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                ៛ KHR
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* HEADER & ROLE / DEPARTMENT FILTER BAR */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
-          {/* Top Brand Bar & Shift Status */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="flex items-center gap-3.5">
-              <div className={`w-12 h-12 rounded-2xl font-bold flex items-center justify-center shadow-md flex-shrink-0 transition-colors ${
-                requestMode === 'stuff' ? 'bg-amber-600 text-white' : 'bg-primary text-primary-foreground'
-              }`}>
-                {requestMode === 'stuff' ? <GlassWater className="w-6 h-6 stroke-[2.5]" /> : <Store className="w-6 h-6 stroke-[2.5]" />}
+              <div className="w-12 h-12 rounded-2xl font-bold flex items-center justify-center shadow-md bg-primary text-primary-foreground">
+                <Store className="w-6 h-6 stroke-[2.5]" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider border bg-slate-100 text-slate-700 border-slate-200 shadow-2xs">
-                    {requestMode === 'stuff' ? '⚡ ACTIVE SHIFT: CASH & SUPPLY REQUISITION' : '⚡ ACTIVE SHIFT: MORNING MARKET'}
-                  </span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
-                  {requestMode === 'stuff' ? 'Supplies, Equipment & Cash Requisition' : "Chef's Market Glossary"}
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight mt-1">
+                  Unified Requisition Catalog
                 </h1>
+                <span className="text-xs text-slate-500 font-medium">Request food ingredients, FOH supplies, or money advances</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 self-end sm:self-auto">
-              {/* Intentional Black CTA: Add Custom Item */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowMoneyModal(true)}
+                className="whitespace-nowrap px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer border border-emerald-500/30"
+              >
+                <DollarSign className="w-4 h-4 stroke-[3] text-amber-300" />
+                <span>Request Money / Cash Advance</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setShowCustomModal(true)}
                 className="whitespace-nowrap px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-primary stroke-[3]" />
-                <span>{requestMode === 'stuff' ? t('market.addCustomStuff') : t('market.addCustomItem')}</span>
+                <span>Add Custom Item</span>
               </button>
             </div>
           </div>
 
-          {/* REQUISITION MODE SWITCHER */}
+          {/* ROLE & DEPARTMENT SWITCHER STRIP */}
           <div className="space-y-2">
             <label className="block text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <span>🔄 Requisition Mode / ជ្រើសរើសប្រភេទសំណូមពរ</span>
+              <span>⚡ Active Requisition Role / Department Workflow:</span>
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {/* Mode 1: Glossary (Fresh Food & Pantry) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button
                 type="button"
-                onClick={() => handleModeChange('glossary')}
-                className={`group flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                  requestMode === 'glossary'
-                    ? 'bg-primary/10 border-primary shadow-sm shadow-primary/10 ring-2 ring-primary/20 scale-[1.01]'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300'
+                onClick={() => handleRoleChange('manager')}
+                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                  requesterRole === 'manager'
+                    ? 'bg-indigo-50/80 border-indigo-600 ring-2 ring-indigo-500/20 shadow-sm scale-[1.01]'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
                 }`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                    requestMode === 'glossary' ? 'bg-primary text-primary-foreground shadow-sm font-bold' : 'bg-white text-slate-600 border border-slate-200'
-                  }`}>
-                    <Beef className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className={`text-sm sm:text-base font-black tracking-tight leading-snug truncate ${
-                      requestMode === 'glossary' ? 'text-slate-900' : 'text-slate-700'
-                    }`}>
-                      Food Ingredients Catalog
-                    </h3>
-                  </div>
-                </div>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ml-2 ${
-                  requestMode === 'glossary' ? 'bg-primary text-primary-foreground font-black' : 'border border-slate-300 text-transparent'
+                <div className={`p-2 rounded-lg transition-colors ${
+                  requesterRole === 'manager' ? 'bg-indigo-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200'
                 }`}>
-                  ✓
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-black text-sm ${requesterRole === 'manager' ? 'text-indigo-950' : 'text-slate-700'}`}>
+                      Manager
+                    </span>
+                    {requesterRole === 'manager' && (
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-600 text-white">Active</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium truncate">Full Catalog + Cash / Money Request</p>
                 </div>
               </button>
 
-              {/* Mode 2: Stuff (Glassware, Supplies & Tip Advance) */}
               <button
                 type="button"
-                onClick={() => handleModeChange('stuff')}
-                className={`group flex items-center justify-between p-4 rounded-xl border-2 text-left transition-all cursor-pointer ${
-                  requestMode === 'stuff'
-                    ? 'bg-amber-500/15 border-amber-600 shadow-sm shadow-amber-500/10 ring-2 ring-amber-500/20 scale-[1.01]'
-                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300'
+                onClick={() => handleRoleChange('staff')}
+                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                  requesterRole === 'staff'
+                    ? 'bg-amber-50/80 border-amber-600 ring-2 ring-amber-500/20 shadow-sm scale-[1.01]'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
                 }`}
               >
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                    requestMode === 'stuff' ? 'bg-amber-600 text-white shadow-sm font-bold' : 'bg-white text-slate-600 border border-slate-200'
-                  }`}>
-                    <GlassWater className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className={`text-sm sm:text-base font-black tracking-tight leading-snug truncate ${
-                        requestMode === 'stuff' ? 'text-slate-900' : 'text-slate-700'
-                      }`}>
-                        Operational Supplies & Cash
-                      </h3>
-                      <span className="bg-amber-500 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-full shadow-2xs">
-                        NEW
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ml-2 ${
-                  requestMode === 'stuff' ? 'bg-amber-600 text-white font-black' : 'border border-slate-300 text-transparent'
+                <div className={`p-2 rounded-lg transition-colors ${
+                  requesterRole === 'staff' ? 'bg-amber-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200'
                 }`}>
-                  ✓
+                  <Utensils className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-black text-sm ${requesterRole === 'staff' ? 'text-amber-950' : 'text-slate-700'}`}>
+                      🍳 Kitchen Staff
+                    </span>
+                    {requesterRole === 'staff' && (
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-600 text-white">Active</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium truncate">Buying Food & Kitchen Tools</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleRoleChange('service')}
+                className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left cursor-pointer ${
+                  requesterRole === 'service'
+                    ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-500/20 shadow-sm scale-[1.01]'
+                    : 'bg-slate-50 border-slate-200 hover:bg-slate-100/80'
+                }`}
+              >
+                <div className={`p-2 rounded-lg transition-colors ${
+                  requesterRole === 'service' ? 'bg-emerald-600 text-white font-bold shadow-2xs' : 'bg-white text-slate-600 border border-slate-200'
+                }`}>
+                  <GlassWater className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-black text-sm ${requesterRole === 'service' ? 'text-emerald-950' : 'text-slate-700'}`}>
+                      🍸 Service / Bar
+                    </span>
+                    {requesterRole === 'service' && (
+                      <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-600 text-white">Active</span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium truncate">Buying FOH Stuff & Money Request</p>
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Compact Search Bar with Integrated Item Count Badge */}
+          {/* Compact Search Bar */}
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -423,14 +623,6 @@ export default function NewMarketOrderPage() {
                 className="w-full h-12 pl-12 pr-32 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/15 transition-all shadow-inner"
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="text-xs font-bold bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-1 rounded-lg transition-colors cursor-pointer"
-                  >
-                    {t('common.clear')}
-                  </button>
-                )}
                 <span className="hidden sm:inline-flex items-center gap-1 bg-slate-200/80 text-slate-600 px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-300/50">
                   <span>{filteredIngredients.length} items</span>
                 </span>
@@ -438,7 +630,6 @@ export default function NewMarketOrderPage() {
             </div>
           </div>
 
-          {/* Category Bar Component (The Single Source of Category Filtering) */}
           <CategoryBar
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
@@ -447,26 +638,25 @@ export default function NewMarketOrderPage() {
           />
         </div>
 
-        {/* SECTION 2: MAIN 2-COLUMN WORKSPACE (Left: Ingredients List, Right: Basket Panel) */}
+        {/* WORKSPACE */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* LEFT COLUMN: INGREDIENTS CATALOG (8 columns on desktop) */}
           <div className="lg:col-span-8 space-y-4">
             <IngredientList
               items={filteredIngredients}
               selectedCategory={selectedCategory}
               orderItems={orderItems}
-              onSelectIngredient={handleSelectIngredient}
+              onInlineAdd={handleInlineAdd}
+              onInlineRemove={handleInlineRemove}
               currency={currency}
               onCurrencyChange={setCurrency}
             />
           </div>
 
-          {/* RIGHT COLUMN: STICKY BASKET PANEL (4 columns on desktop) */}
           <div className="hidden lg:block lg:col-span-4">
             <BasketPanel
               orderItems={orderItems}
               onEditItem={(item) => setActiveModalItem({ ingredient: item.ingredient, orderItem: item })}
-              onRemoveItem={handleRemoveOrderItem}
+              onRemoveItem={handleInlineRemove}
               onClearBasket={handleClearBasket}
               onSubmitOrder={() => setShowReviewModal(true)}
               submitting={submitting}
@@ -476,12 +666,9 @@ export default function NewMarketOrderPage() {
         </div>
       </div>
 
-      {/* MOBILE FLOATING BOTTOM BAR & DRAWER (Visible below 1024px) */}
+      {/* MOBILE BOTTOM BAR & DRAWER */}
       <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-slate-900 text-white p-4 border-t border-slate-800 shadow-2xl flex items-center justify-between gap-4">
-        <div 
-          onClick={() => setShowMobileBasket(true)}
-          className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
-        >
+        <div onClick={() => setShowMobileBasket(true)} className="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
           <div className="relative p-2.5 bg-primary text-primary-foreground font-bold rounded-xl">
             <ShoppingCart className="w-5 h-5 stroke-[2.5]" />
             {totalItemCount > 0 && (
@@ -492,39 +679,28 @@ export default function NewMarketOrderPage() {
           </div>
           <div className="min-w-0">
             <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">
-              {totalItemCount === 0 ? t('basket.listEmpty') : `${totalItemCount} ${t('basket.items')} (${totalUnitsCount} ${t('basket.units')})`}
+              {totalItemCount === 0 ? t('basket.listEmpty') : `${totalItemCount} ${t('basket.items')}`}
             </span>
-            <div className="text-lg font-black text-white truncate inline-flex items-center gap-1 whitespace-nowrap">
+            <div className="text-lg font-black text-white truncate inline-flex items-center gap-1">
               <span>{currency === 'KHR' ? `${Math.round(estimatedTotalCost).toLocaleString()}` : `$${estimatedTotalCost.toFixed(2)}`}</span>
               {currency === 'KHR' && <span>៛</span>}
-              <span className="text-xs font-normal text-slate-400 ml-1">{t('basket.estTotal')}</span>
             </div>
           </div>
         </div>
-
         <button
-          type="button"
           onClick={() => {
-            if (totalItemCount > 0) {
-              setShowReviewModal(true);
-            } else {
-              setShowMobileBasket(true);
-            }
+            if (totalItemCount > 0) setShowReviewModal(true);
           }}
-          disabled={totalItemCount === 0}
-          className="whitespace-nowrap bg-primary text-primary-foreground font-bold shadow-sm hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all py-3 px-5 rounded-xl flex items-center gap-2 active:scale-95 disabled:opacity-40 text-sm flex-shrink-0 cursor-pointer"
+          disabled={totalItemCount === 0 || submitting}
+          className="whitespace-nowrap bg-[#0A8F4D] hover:bg-[#08733E] text-white font-black shadow-lg shadow-emerald-700/20 py-3.5 px-6 rounded-xl flex items-center gap-2 active:scale-95 disabled:opacity-40 text-sm cursor-pointer border border-[#0A8F4D]/30"
         >
-          <span>{t('basket.reviewBtn')}</span>
+          <span>{submitting ? 'Sending...' : 'Review & Submit'}</span>
           <ArrowRight className="w-4 h-4 stroke-[3]" />
         </button>
       </div>
 
-      {/* MOBILE BASKET DRAWER MODAL */}
-      <Modal
-        isOpen={showMobileBasket}
-        onClose={() => setShowMobileBasket(false)}
-        title={t('basket.title')}
-      >
+      {/* MOBILE BASKET MODAL */}
+      <Modal isOpen={showMobileBasket} onClose={() => setShowMobileBasket(false)} title={t('basket.title')}>
         <div className="p-4">
           <BasketPanel
             orderItems={orderItems}
@@ -532,7 +708,7 @@ export default function NewMarketOrderPage() {
               setShowMobileBasket(false);
               setActiveModalItem({ ingredient: item.ingredient, orderItem: item });
             }}
-            onRemoveItem={handleRemoveOrderItem}
+            onRemoveItem={handleInlineRemove}
             onClearBasket={handleClearBasket}
             onSubmitOrder={() => {
               setShowMobileBasket(false);
@@ -544,486 +720,359 @@ export default function NewMarketOrderPage() {
         </div>
       </Modal>
 
-      {/* SECTION 3: MODAL DIALOGS */}
-      {/* 1. ORDER ITEM MODAL (Opens when an ingredient row is clicked) */}
+      {/* ADVANCED EDIT MODAL */}
       <OrderModal
         isOpen={!!activeModalItem}
         onClose={() => setActiveModalItem(null)}
         ingredient={activeModalItem?.ingredient || null}
         initialOrderItem={activeModalItem?.orderItem}
-        onSave={handleSaveOrderItem}
+        onSave={handleInlineAdd}
       />
 
-      {/* 2. ADD CUSTOM INGREDIENT MODAL */}
-      <Modal
-        isOpen={showCustomModal}
-        onClose={() => setShowCustomModal(false)}
-        title={t('custom.title')}
-        maxWidthClassName="max-w-xl sm:max-w-2xl"
-      >
+      {/* ADD CUSTOM INGREDIENT MODAL */}
+      <Modal isOpen={showCustomModal} onClose={() => setShowCustomModal(false)} title="Add Custom Item" maxWidthClassName="max-w-xl">
         <form onSubmit={handleCreateCustomItem} className="p-6 space-y-6">
-          {requestMode === 'stuff' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-100/90 p-2 rounded-2xl border border-slate-200/80 shadow-inner">
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomCategory('Glassware & Tableware');
-                  setCustomUnit('piece');
-                }}
-                className={`py-3 px-4 rounded-xl transition-all flex items-center gap-3 cursor-pointer border ${
-                  customCategory !== 'Petty Cash & Tip Advance' 
-                    ? 'bg-white text-slate-900 border-slate-300/80 shadow-sm font-bold scale-[1.01]' 
-                    : 'bg-transparent border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                }`}
-              >
-                <div className={`p-2 rounded-xl flex-shrink-0 transition-colors ${
-                  customCategory !== 'Petty Cash & Tip Advance' ? 'bg-amber-100 text-amber-700 shadow-2xs' : 'bg-slate-200/80 text-slate-600'
-                }`}>
-                  <GlassWater className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="font-bold text-xs sm:text-sm leading-tight text-slate-900 truncate">
-                    Supply / Equipment
-                  </span>
-                  <span className="font-kantumruy font-light text-[11px] text-slate-500 leading-tight mt-0.5 truncate">
-                    សម្ភារៈ / ឧបករណ៍
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomCategory('Petty Cash & Tip Advance');
-                  setCustomUnit('USD');
-                }}
-                className={`py-3 px-4 rounded-xl transition-all flex items-center gap-3 cursor-pointer border ${
-                  customCategory === 'Petty Cash & Tip Advance' 
-                    ? 'bg-white text-slate-900 border-slate-300/80 shadow-sm font-bold scale-[1.01]' 
-                    : 'bg-transparent border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                }`}
-              >
-                <div className={`p-2 rounded-xl flex-shrink-0 transition-colors ${
-                  customCategory === 'Petty Cash & Tip Advance' ? 'bg-emerald-100 text-emerald-700 shadow-2xs' : 'bg-slate-200/80 text-slate-600'
-                }`}>
-                  <DollarSign className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div className="flex flex-col text-left min-w-0">
-                  <span className="font-bold text-xs sm:text-sm leading-tight text-slate-900 truncate">
-                    Request Money / Cash
-                  </span>
-                  <span className="font-kantumruy font-light text-[11px] text-slate-500 leading-tight mt-0.5 truncate">
-                    ដកប្រាក់ / សំណូមពរសាច់ប្រាក់
-                  </span>
-                </div>
-              </button>
-            </div>
-          )}
-
-          {/* Neutral Info Banner (Slate/Gray info styling instead of brand yellow) */}
-          <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200/90 flex items-start gap-3.5 shadow-inner">
-            <div className="p-2 rounded-xl bg-white text-slate-700 shadow-2xs flex-shrink-0 mt-0.5 border border-slate-200/60">
-              <AlertCircle className="w-4 h-4 stroke-[2.5]" />
-            </div>
-            <p className="text-xs font-medium text-slate-700 leading-relaxed my-auto">
-              {customCategory === 'Petty Cash & Tip Advance'
-                ? 'សំណូមពរដកសាច់ប្រាក់ ឬ Tip Advance នឹងតម្រូវឱ្យបញ្ជាក់មូលហេតុ និងឈ្មោះអ្នកទទួលប្រាក់នៅជំហានបន្ទាប់។'
-                : t('custom.alert')}
-            </p>
-          </div>
-
           <div className="space-y-4">
             <div>
-              <label className="block mb-1.5">
-                <span className="block text-xs font-bold uppercase text-slate-700 tracking-wider">
-                  {customCategory === 'Petty Cash & Tip Advance' ? 'Cash Request Title' : 'Item Name'} <span className="text-red-500">*</span>
-                </span>
-                <span className="block font-kantumruy font-light text-[11px] text-slate-400 mt-0.5">
-                  {customCategory === 'Petty Cash & Tip Advance' ? 'ឈ្មោះ ឬចំណងជើងសំណូមពរដកប្រាក់' : 'ឈ្មោះមុខទំនិញ (អាចបញ្ចូលជាភាសាខ្មែរ ឬអង់គ្លេស)'}
-                </span>
+              <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
+                Item Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 required
                 value={customNameEn}
                 onChange={(e) => setCustomNameEn(e.target.value)}
-                placeholder={customCategory === 'Petty Cash & Tip Advance' ? "e.g., Staff Emergency Tip Advance / ដកប្រាក់រង្វាន់ Tip បន្ទាន់" : "e.g., Premium Truffle Oil / ប្រេងត្រាវហ្វលពិសេស"}
-                className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10"
+                placeholder="e.g. Premium Truffle Oil or Tip Advance"
+                className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:outline-none focus:border-slate-800"
               />
             </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block mb-1.5">
-                  <span className="block text-xs font-bold uppercase text-slate-700 tracking-wider">
-                    {t('custom.category')} <span className="text-red-500">*</span>
-                  </span>
-                  <span className="block font-kantumruy font-light text-[11px] text-slate-400 mt-0.5">
-                    ប្រភេទមុខទំនិញ
-                  </span>
+                <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
+                  Category <span className="text-red-500">*</span>
                 </label>
-                <Select
-                  value={customCategory}
-                  onValueChange={(val) => setCustomCategory(val)}
-                >
-                  <SelectTrigger className="w-full h-12 px-3.5 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:ring-2 focus:ring-slate-800/10 focus:border-slate-800 cursor-pointer shadow-none">
-                    <SelectValue placeholder={t('custom.category')} />
+                <Select value={customCategory} onValueChange={setCustomCategory}>
+                  <SelectTrigger className="w-full h-12 px-3.5 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:border-slate-800 shadow-none z-50">
+                    <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border border-slate-200 bg-white shadow-xl max-h-[260px] z-[60]">
+                  <SelectContent className="z-[70]">
                     {activeCategories.filter(c => c.id !== 'all').map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id} className="font-bold text-sm py-2.5 px-3.5 rounded-lg cursor-pointer hover:bg-slate-100 focus:bg-slate-100 transition-colors">
+                      <SelectItem key={cat.id} value={cat.id}>
                         {language === 'kh' ? (cat.nameKh || cat.nameEn) : cat.nameEn}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-
               {customCategory === 'Petty Cash & Tip Advance' ? (
                 <div>
-                  <label className="block mb-1.5">
-                    <span className="block text-xs font-bold uppercase text-slate-700 tracking-wider">
-                      Currency <span className="text-red-500">*</span>
-                    </span>
-                    <span className="block font-kantumruy font-light text-[11px] text-slate-400 mt-0.5">
-                      រូបិយប័ណ្ណសាច់ប្រាក់
-                    </span>
-                  </label>
-                  <div className="grid grid-cols-2 gap-2 h-12 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => setCurrency('KHR')}
-                      className={`rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                        currency === 'KHR'
-                          ? 'bg-white text-orange-600 shadow-2xs border border-slate-200'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      ៛ KHR
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrency('USD')}
-                      className={`rounded-lg font-black text-xs transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                        currency === 'USD'
-                          ? 'bg-white text-blue-600 shadow-2xs border border-slate-200'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      $ USD
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label className="block mb-1.5">
-                    <span className="block text-xs font-bold uppercase text-slate-700 tracking-wider">
-                      {t('custom.defaultUnit')} <span className="text-red-500">*</span>
-                    </span>
-                    <span className="block font-kantumruy font-light text-[11px] text-slate-400 mt-0.5">
-                      ខ្នាតរង្វាស់រង្វាល់
-                    </span>
-                  </label>
-                  <Select
-                    value={customUnit}
-                    onValueChange={(val) => setCustomUnit(val)}
-                  >
-                    <SelectTrigger className="w-full h-12 px-3.5 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:ring-2 focus:ring-slate-800/10 focus:border-slate-800 cursor-pointer shadow-none">
-                      <SelectValue placeholder={t('custom.defaultUnit')} />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border border-slate-200 bg-white shadow-xl max-h-[220px] z-[60]">
-                      {(requestMode === 'stuff' 
-                        ? ['piece', 'set', 'box', 'pack', 'bottle', 'gallon', 'tank', 'pair', 'roll'] 
-                        : ['kg', 'gram', 'piece', 'pack', 'box', 'can', 'bottle', 'bunch', 'liter']
-                      ).map((u) => (
-                        <SelectItem key={u} value={u} className="font-bold text-sm py-2 px-3.5 rounded-lg cursor-pointer hover:bg-slate-100 focus:bg-slate-100 transition-colors">
-                          {u.toUpperCase()} ({u})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-              {customCategory !== 'Petty Cash & Tip Advance' && (
-                <div>
-                  <label className="block mb-1.5">
-                    <span className="block text-xs font-bold uppercase text-slate-700 tracking-wider">
-                      Currency <span className="text-red-500">*</span>
-                    </span>
-                    <span className="block font-kantumruy font-light text-[11px] text-slate-400 mt-0.5">
-                      រូបិយប័ណ្ណ
-                    </span>
-                  </label>
-                  <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold h-11">
-                    <button
-                      type="button"
-                      onClick={() => setCurrency('USD')}
-                      className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                        currency === 'USD' ? 'bg-white text-blue-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      $ USD
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCurrency('KHR')}
-                      className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                        currency === 'KHR' ? 'bg-white text-orange-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      ៛ KHR
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className={customCategory === 'Petty Cash & Tip Advance' ? 'sm:col-span-2' : ''}>
-                <label className="block mb-1.5">
-                  <span className="block text-xs font-bold uppercase text-slate-700 tracking-wider">
-                    {customCategory === 'Petty Cash & Tip Advance' ? 'Estimated Amount' : t('custom.priceUnit')} <span className="text-red-500">*</span>
-                  </span>
-                  <span className="block font-kantumruy font-light text-[11px] text-slate-400 mt-0.5">
-                    {customCategory === 'Petty Cash & Tip Advance' ? 'ចំនួនប្រាក់ប៉ាន់ស្មាន' : 'តម្លៃប៉ាន់ស្មានក្នុងមួយឯកតា'}
-                  </span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-black text-sm">
-                    {currency === 'KHR' ? '៛ KHR' : '$ USD'}
-                  </span>
+                  <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">Amount <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     required
-                    value={customPrice === 0 ? '' : customPrice}
+                    value={customPrice || ''}
                     onChange={(e) => setCustomPrice(parseFloat(e.target.value) || 0)}
-                    placeholder="0.00"
-                    className="w-full h-12 pl-20 pr-4 rounded-xl border border-slate-300 bg-white font-black text-base focus:outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-800/10"
+                    className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:outline-none focus:border-slate-800"
                   />
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">Default Unit <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    required
+                    value={customUnit}
+                    onChange={(e) => setCustomUnit(e.target.value)}
+                    className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:outline-none focus:border-slate-800"
+                  />
+                </div>
+              )}
             </div>
           </div>
-
-          <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200/80">
-            <button
-              type="button"
-              onClick={() => setShowCustomModal(false)}
-              className="whitespace-nowrap px-5 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 font-bold text-sm text-slate-700 transition-all cursor-pointer shadow-2xs"
-            >
-              {t('common.cancel')}
-            </button>
-            <button
-              type="submit"
-              className="whitespace-nowrap px-6 py-3 rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-md hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all flex items-center gap-2 cursor-pointer"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>{t('custom.createOrder')}</span>
-            </button>
+          <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-200">
+            <button type="button" onClick={() => setShowCustomModal(false)} className="px-5 py-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 font-bold text-sm text-slate-700">Cancel</button>
+            <button type="submit" className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-md hover:bg-primary-hover flex items-center gap-2">Add Item</button>
           </div>
         </form>
       </Modal>
 
-      {/* 3. REVIEW & SUBMIT CONFIRMATION MODAL */}
+      {/* REQUEST MONEY / CASH ADVANCE WITH REASON MODAL */}
+      <Modal
+        isOpen={showMoneyModal}
+        onClose={() => setShowMoneyModal(false)}
+        title="Request Money / Cash Advance"
+        subtitle="Submit a cash advance, tip payout, or petty cash request with a clear justification."
+      >
+        <div className="space-y-5 pt-2">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
+            <Banknote className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-emerald-900 leading-relaxed font-medium">
+              <strong>Audit Policy:</strong> Every cash advance or money requisition requires a specific, auditable reason. Direct submissions will be routed immediately to the <span className="inline-flex items-center gap-1 font-bold text-emerald-950"><Crown className="w-3.5 h-3.5 text-emerald-700 inline -mt-0.5" /> Restaurant Manager</span> for review.
+            </p>
+          </div>
+
+          <div>
+            <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
+              Purpose / Category <span className="text-red-500">*</span>
+            </label>
+            <Select value={moneyPurpose} onValueChange={setMoneyPurpose}>
+              <SelectTrigger className="w-full h-auto min-h-12 py-2.5 px-3.5 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:border-slate-800 shadow-none z-50 text-left">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-[70] max-w-lg">
+                <SelectItem value="Tip Advance Payout (ដកប្រាក់រង្វាន់ Tip មុនកាលកំណត់)" className="py-2">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-sm text-slate-900 leading-tight">Tip Advance Payout</span>
+                    <span className="text-xs font-medium text-slate-500 leading-tight mt-0.5">ដកប្រាក់រង្វាន់ Tip មុនកាលកំណត់</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Petty Cash for Local Market (ប្រាក់ស្បៀងទិញផ្សារបន្ទាន់)" className="py-2">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-sm text-slate-900 leading-tight">Petty Cash for Local Market</span>
+                    <span className="text-xs font-medium text-slate-500 leading-tight mt-0.5">ប្រាក់ស្បៀងទិញផ្សារបន្ទាន់</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Transport / TukTuk Reimbursement (ប្រាក់ថ្លៃដឹកជញ្ជូន)" className="py-2">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-sm text-slate-900 leading-tight">Transport / TukTuk Reimbursement</span>
+                    <span className="text-xs font-medium text-slate-500 leading-tight mt-0.5">ប្រាក់ថ្លៃដឹកជញ្ជូន</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Emergency Supply Purchase (ប្រាក់ទិញសម្ភារៈបន្ទាន់)" className="py-2">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-sm text-slate-900 leading-tight">Emergency Supply Purchase</span>
+                    <span className="text-xs font-medium text-slate-500 leading-tight mt-0.5">ប្រាក់ទិញសម្ភារៈបន្ទាន់</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Staff Welfare / Advance (ប្រាក់បុរេប្រទានបុគ្គលិក)" className="py-2">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-sm text-slate-900 leading-tight">Staff Welfare / Salary Advance</span>
+                    <span className="text-xs font-medium text-slate-500 leading-tight mt-0.5">ប្រាក់បុរេប្រទានបុគ្គលិក</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="Other Cash Advance (ផ្សេងៗ)" className="py-2">
+                  <div className="flex flex-col text-left">
+                    <span className="font-bold text-sm text-slate-900 leading-tight">Other Cash Advance</span>
+                    <span className="text-xs font-medium text-slate-500 leading-tight mt-0.5">ផ្សេងៗ</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
+                Amount <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                placeholder="0.00"
+                value={moneyAmount || ''}
+                onChange={(e) => setMoneyAmount(parseFloat(e.target.value) || 0)}
+                className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-black text-base text-emerald-700 focus:outline-none focus:border-emerald-600"
+              />
+            </div>
+            <div>
+              <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
+                Currency <span className="text-red-500">*</span>
+              </label>
+              <div className="flex items-center bg-slate-100 p-1.5 rounded-xl border border-slate-200 font-bold text-xs h-12">
+                <button
+                  type="button"
+                  onClick={() => setMoneyCurrency('USD')}
+                  className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    moneyCurrency === 'USD' ? 'bg-white text-blue-600 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  $ USD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMoneyCurrency('KHR')}
+                  className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    moneyCurrency === 'KHR' ? 'bg-white text-orange-600 shadow-xs font-black' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  ៛ KHR
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block mb-1 text-xs font-bold uppercase text-slate-700 tracking-wider">
+              Detailed Reason / Justification <span className="text-red-500">*</span>
+            </label>
+            <p className="text-[11px] font-medium text-slate-500 mb-2">
+              Required for audit approval and manager review
+            </p>
+            <textarea
+              required
+              rows={3}
+              placeholder="e.g., Need $30 tip payout for family medical emergency, or 120,000៛ to pay local farmer delivery for fresh river fish..."
+              value={moneyReason}
+              onChange={(e) => setMoneyReason(e.target.value)}
+              className="w-full p-3.5 rounded-xl border border-slate-300 bg-white font-medium text-sm text-slate-800 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 leading-relaxed"
+            />
+          </div>
+
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setShowMoneyModal(false)}
+              className="w-full sm:w-auto min-h-[48px] px-5 py-3.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 font-bold text-sm text-slate-700 cursor-pointer order-3 sm:order-1 flex items-center justify-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={(e) => handleCreateMoneyRequest(e, false)}
+              className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-sm shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2.5 order-1 sm:order-2 border border-slate-800"
+            >
+              <Plus className="w-4 h-4 shrink-0 text-primary stroke-[3]" />
+              <span>Add to Basket</span>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => handleCreateMoneyRequest(e, true)}
+              className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-xl bg-[#0A8F4D] hover:bg-[#08733E] text-white font-black text-sm shadow-md shadow-emerald-700/20 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2.5 order-2 sm:order-3 border border-[#0A8F4D]/30"
+            >
+              <Send className="w-4 h-4 shrink-0 text-white" />
+              <span>Submit Directly</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* REVIEW & SUBMIT CONFIRMATION MODAL */}
       <Modal
         isOpen={showReviewModal}
         onClose={() => !submitting && setShowReviewModal(false)}
         title={t('review.title')}
         maxWidthClassName="max-w-3xl"
       >
-        {submittedSuccess ? (
-          <div className="py-12 px-6 text-center space-y-4 animate-in zoom-in-95 duration-300">
-            <div className="w-20 h-20 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto shadow-lg animate-bounce">
-              <CheckCircle2 className="w-10 h-10 stroke-[3]" />
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-              {t('review.sentTitle')}
-            </h3>
-            <p className="text-sm text-slate-500 font-medium max-w-sm mx-auto leading-relaxed">
-              {t('review.sentSub')}
-            </p>
-            <div className="pt-2">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 text-slate-700 font-bold text-xs">
-                <div className="w-2 h-2 rounded-full bg-primary animate-ping" />
-                <span>{t('review.redirecting')}</span>
+        <div className="space-y-6 pt-2">
+          {/* Top Summary Header Banner */}
+          <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800">
+            <div>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                {t('review.totalCost')}
+              </span>
+              <div className="text-3xl font-black tracking-tight text-white flex items-center gap-2">
+                <span>
+                  {currency === 'KHR'
+                    ? `${Math.round(estimatedTotalCost).toLocaleString()} ៛`
+                    : `$${estimatedTotalCost.toFixed(2)}`}
+                </span>
+                {currency === 'USD' && <span className="text-base font-bold text-slate-400">USD</span>}
+              </div>
+              <span className="text-[11px] font-medium text-slate-400">
+                {totalItemCount} {t('basket.items')} • {totalUnitsCount} {t('basket.units')}
               </span>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-5 flex flex-col flex-1 min-h-0">
-            {/* Delivery Date & Priority Configuration */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 flex-shrink-0">
-              <div className="sm:col-span-4">
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  <span>{t('review.targetDate')} <span className="text-red-500">*</span></span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer"
-                />
-                {deliveryDate && (
-                  <span className="block text-[11px] font-bold text-primary mt-1.5 px-1">
-                    📅 {(() => {
-                      const [y, m, d] = deliveryDate.split('-');
-                      if (!y || !m || !d) return deliveryDate;
-                      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                      return `${d}/${m}/${y} (${d} ${months[parseInt(m, 10) - 1] || m} ${y})`;
-                    })()}
-                  </span>
-                )}
-              </div>
 
-              <div className="sm:col-span-5">
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span>{t('review.priority')}</span>
-                </label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value as any)}
-                  className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer truncate"
-                  title={t(`review.priority${priority.charAt(0).toUpperCase() + priority.slice(1)}` as any) || priority}
-                >
-                  <option value="normal">{t('review.priorityNormal')}</option>
-                  <option value="urgent">{t('review.priorityUrgent')}</option>
-                  <option value="scheduled">{t('review.priorityScheduled')}</option>
-                </select>
+            <div className="flex flex-col gap-1.5 sm:items-end text-xs w-full sm:w-auto bg-slate-800/80 p-3 rounded-xl border border-slate-700/80">
+              <div className="flex items-center gap-1.5 text-slate-300">
+                <Calendar className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="font-bold">{t('review.targetDate')}:</span>
+                <span className="text-white font-extrabold">{deliveryDate || 'Standard Next Morning'}</span>
               </div>
-
-              <div className="sm:col-span-3">
-                <label className="block text-xs font-bold uppercase text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <span className="text-primary font-black">៛/$</span>
-                  <span>Currency / រូបិយប័ណ្ណ</span>
-                </label>
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold h-11">
-                  <button
-                    type="button"
-                    onClick={() => setCurrency('USD')}
-                    className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                      currency === 'USD' ? 'bg-white text-blue-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    $ USD
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrency('KHR')}
-                    className={`flex-1 h-full rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 ${
-                      currency === 'KHR' ? 'bg-white text-orange-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
-                    }`}
-                  >
-                    ៛ KHR
-                  </button>
-                </div>
+              <div className="flex items-center gap-1.5 text-slate-300">
+                <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="font-bold">{t('review.priority')}:</span>
+                <span className={`font-black ${priority === 'urgent' ? 'text-red-400' : 'text-emerald-400'}`}>
+                  {priority === 'urgent' ? t('review.priorityUrgent') : t('review.priorityNormal')}
+                </span>
               </div>
             </div>
+          </div>
 
-            {/* Selected Items Summary List */}
-            <div className="space-y-2 flex-1 flex flex-col min-h-0">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-1 flex-shrink-0">
-                <span>{t('review.selectedItems')} ({totalItemCount})</span>
-                <span>{t('review.lineTotal')}</span>
-              </div>
+          {/* Selected Ingredients & Requisition Items List */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black uppercase text-slate-700 tracking-wider">
+                {t('review.selectedItems')} ({itemsList.length})
+              </h4>
+            </div>
 
-              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-y-auto bg-white flex-1 min-h-[160px] max-h-[320px] shadow-2xs">
-                {itemsList.map((item) => {
-                  const itemIsCash = isCashItem(item);
-                  const mainName = language === 'kh' ? (item.ingredient.nameKh || item.ingredient.nameEn) : item.ingredient.nameEn;
-                  return (
-                    <div key={item.ingredient.id} className="p-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs flex-shrink-0 shadow-2xs ${
-                          itemIsCash ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {itemIsCash ? (item.unit === 'USD' ? '$' : '៛') : item.quantity}
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold text-sm text-slate-900 block line-clamp-2 leading-tight break-words" title={mainName}>
-                            {mainName}
-                          </span>
-                          <span className="text-[11px] font-medium text-slate-400 block truncate mt-0.5">
-                            {itemIsCash ? (
-                              <>
-                                {item.supplier || 'Staff Member / Beneficiary'} • {t('modal.amountRequested') || 'Amount Requested'}
-                              </>
-                            ) : (
-                              <>
-                                {item.quantity} {item.unit} × {formatMoney(item.pricePerUnit)} • {item.supplier || 'Morning Wet Market'}
-                              </>
-                            )}
-                          </span>
-                        </div>
+            <div className="max-h-80 overflow-y-auto space-y-2.5 pr-1 divide-y divide-slate-100 rounded-2xl border border-slate-200 p-3 bg-slate-50/50">
+              {itemsList.map((item, idx) => {
+                const itemIsCash = isCashItem(item);
+                const itemTotal = item.totalCost;
+                return (
+                  <div key={`${item.ingredient.id}-${idx}`} className="pt-2.5 first:pt-0 flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-lg shrink-0">
+                        {renderIngredientIcon(item.ingredient.iconName)}
                       </div>
-                      <div className="font-black text-sm text-slate-900 flex-shrink-0 whitespace-nowrap inline-flex items-center gap-1">
-                        {itemIsCash ? (
-                          <>
-                            <span>{item.unit === 'KHR' ? `${Number(item.totalCost).toLocaleString()}` : `$${Number(item.totalCost).toFixed(2)}`}</span>
-                            <span>{item.unit === 'KHR' ? '៛' : 'USD'}</span>
-                          </>
-                        ) : (
-                          <span>{formatMoney(item.totalCost)}</span>
-                        )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-sm text-slate-900 leading-tight">
+                          {language === 'kh' ? (item.ingredient.nameKh || item.ingredient.nameEn) : item.ingredient.nameEn}
+                        </div>
+                        <span className="text-xs font-medium text-slate-500 block mt-0.5">
+                          {itemIsCash ? (
+                            <span className="text-emerald-700 font-semibold">
+                              {item.supplierNotes ? item.supplierNotes : 'Staff Member / Beneficiary'}
+                            </span>
+                          ) : (
+                            <span>
+                              {item.quantity} {item.unit} × {item.unit === 'KHR' ? `${Math.round(item.pricePerUnit).toLocaleString()} ៛` : `$${item.pricePerUnit.toFixed(2)}`}
+                            </span>
+                          )}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Final Cost Summary Box */}
-            <div className="p-4 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-between gap-4 flex-shrink-0">
-              <div>
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wide block">
-                  {t('review.totalCost')}
-                </span>
-                <span className="font-kantumruy text-xs text-slate-500 block mt-0.5">
-                  {t('review.totalCostSub')}
-                </span>
-              </div>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 bg-primary/20 px-3.5 py-1.5 rounded-xl border border-primary/30 inline-flex items-center gap-1.5 whitespace-nowrap flex-shrink-0">
-                <span>{currency === 'KHR' ? `${Math.round(estimatedTotalCost).toLocaleString()}` : `$${estimatedTotalCost.toFixed(2)}`}</span>
-                {currency === 'KHR' && <span>៛</span>}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-2 flex-shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowReviewModal(false)}
-                disabled={submitting}
-                className="whitespace-nowrap px-6 py-3.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm transition-all cursor-pointer shadow-2xs"
-              >
-                {t('common.back')}
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmitOrder}
-                disabled={submitting}
-                className="whitespace-nowrap flex-1 sm:flex-none px-8 py-3.5 rounded-xl bg-primary text-primary-foreground font-bold shadow-md hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all text-base flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
-              >
-                {submitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                    <span>{t('review.routing')}</span>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-black text-slate-900 tabular-nums">
+                        {item.unit === 'KHR'
+                          ? `${Math.round(itemTotal).toLocaleString()} ៛`
+                          : `$${itemTotal.toFixed(2)}`}
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-                    <span>{t('review.confirmSend')}</span>
-                  </>
-                )}
-              </button>
+                );
+              })}
             </div>
           </div>
-        )}
+
+          {/* Final Actions / High-Contrast Submit Buttons */}
+          <div className="pt-4 flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => setShowReviewModal(false)}
+              disabled={submitting}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-sm transition-all cursor-pointer shadow-2xs order-2 sm:order-1"
+            >
+              Cancel / Back to Edit
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmitOrder}
+              disabled={submitting || itemsList.length === 0}
+              className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#0A8F4D] hover:bg-[#08733E] text-white font-black text-base shadow-lg shadow-emerald-700/20 transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2.5 order-1 sm:order-2 border border-[#0A8F4D]/30"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>{t('basket.sending')}</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                  <span>{t('review.confirmSend')}</span>
+                  <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </Modal>
     </AppLayout>
   );

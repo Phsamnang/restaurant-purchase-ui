@@ -26,6 +26,13 @@ import {
   CheckCheck,
   ClipboardCheck,
   Printer,
+  Crown,
+  GlassWater,
+  Utensils,
+  ArrowRight,
+  Banknote,
+  ShoppingCart,
+  Wallet,
 } from 'lucide-react';
 
 // ── Status token system ───────────────────────────────────────────────────────
@@ -235,7 +242,7 @@ export default function RequestsPage() {
                 ? 'bg-orange-500 border-orange-600 shadow-lg shadow-orange-200'
                 : 'bg-slate-100 border-slate-200'
             }`}>
-              <span className={`text-3xl font-black leading-none tabular-nums ${pendingCount > 0 ? 'text-white' : 'text-slate-400'}`}>
+              <span className={`text-xl sm:text-2xl font-extrabold leading-none tabular-nums ${pendingCount > 0 ? 'text-white' : 'text-slate-400'}`}>
                 {pendingCount}
               </span>
               <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${pendingCount > 0 ? 'text-orange-100' : 'text-slate-400'}`}>
@@ -403,6 +410,60 @@ export default function RequestsPage() {
                               </span>
                             </span>
 
+                            {/* Requester Role Badge ('manager' | 'staff' | 'service') */}
+                            {(() => {
+                              const roleStr = order.requesterRole || (
+                                order.createdBy?.toLowerCase().includes('manager') ? 'manager' :
+                                order.createdBy?.toLowerCase().includes('service') ? 'service' : 'staff'
+                              );
+                              if (roleStr === 'manager') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-black rounded-lg px-2.5 py-1 bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-2xs">
+                                    <Crown className="w-3 h-3 text-indigo-700" /> Manager
+                                  </span>
+                                );
+                              }
+                              if (roleStr === 'service') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-black rounded-lg px-2.5 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                                    <GlassWater className="w-3 h-3 text-emerald-700" /> Service & FOH
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-black rounded-lg px-2.5 py-1 bg-amber-100 text-amber-900 border border-amber-200 shadow-2xs">
+                                  <Utensils className="w-3 h-3 text-amber-700" /> Kitchen Staff
+                                </span>
+                              );
+                            })()}
+
+                            {/* Target Approver / Requested From Badge */}
+                            {(() => {
+                              const targetStr = order.requestedFrom || (
+                                order.createdBy?.includes('Manager') || order.requesterRole === 'service' ? 'manager' :
+                                order.createdBy?.includes('Accounting') ? 'accounting' : 'purchaser'
+                              );
+                              if (targetStr === 'manager') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-extrabold rounded-lg px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 shadow-2xs">
+                                    <ArrowRight className="w-3 h-3 text-purple-600" /> To: <Crown className="w-3 h-3 text-purple-700" /> Manager
+                                  </span>
+                                );
+                              }
+                              if (targetStr === 'accounting') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-extrabold rounded-lg px-2.5 py-1 bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                                    <ArrowRight className="w-3 h-3 text-blue-600" /> To: <Wallet className="w-3 h-3 text-blue-700" /> Accounting
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-extrabold rounded-lg px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
+                                  <ArrowRight className="w-3 h-3 text-slate-500" /> To: <ShoppingCart className="w-3 h-3 text-slate-600" /> Purchaser
+                                </span>
+                              );
+                            })()}
+
                             {/* Elapsed time — visible on pending + discrepancy */}
                             {elapsed && (
                               <span className={`inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 ${
@@ -455,6 +516,19 @@ export default function RequestsPage() {
                             >
                               Cancel
                             </button>
+                          </div>
+                        )}
+
+                        {/* Money Request Reason / Notes Banner */}
+                        {(order.notes?.includes('Money Request Reason') || order.requestType === 'stuff' || order.items?.some(i => i.category === 'Petty Cash & Tip Advance' || i.supplierNotes?.includes('Reason:'))) && (
+                          <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-xl p-2.5 flex items-start gap-2.5 my-1">
+                            <Banknote className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="flex-1 text-xs">
+                              <strong className="text-emerald-900 font-bold">Staff Request Reason: </strong>
+                              <span className="text-emerald-800 font-medium">
+                                {order.notes?.replace('💵 Money Request Reason:', '').trim() || order.items?.find(i => i.supplierNotes?.includes('Reason:'))?.supplierNotes || order.notes || 'Requisition advance'}
+                              </span>
+                            </div>
                           </div>
                         )}
 

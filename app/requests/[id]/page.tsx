@@ -34,7 +34,14 @@ import {
   Minus,
   Plus,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Banknote,
+  Crown,
+  GlassWater,
+  Utensils,
+  ArrowRight,
+  Wallet,
+  ShoppingCart
 } from 'lucide-react';
 
 // ── Portal: mounts children directly on document.body so @media print can isolate them
@@ -359,10 +366,76 @@ export default function RequestDetailPage() {
               {/* Left Side: Order Number, Status, Dates, Creators */}
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                     {order.id}
                   </h1>
                   {renderStatusBadge(order.status)}
+
+                  {/* Requester Role Badge ('manager' | 'staff' | 'service') */}
+                  {(() => {
+                    const roleStr = order.requesterRole || (
+                      order.createdBy?.toLowerCase().includes('manager') ? 'manager' :
+                      order.createdBy?.toLowerCase().includes('service') ? 'service' : 'staff'
+                    );
+                    if (roleStr === 'manager') {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-black rounded-lg px-3 py-1 bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-2xs">
+                          <Crown className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
+                          <span>Manager Requisition</span>
+                        </span>
+                      );
+                    }
+                    if (roleStr === 'service') {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-black rounded-lg px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
+                          <GlassWater className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span>Service & FOH Requisition</span>
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-black rounded-lg px-3 py-1 bg-amber-100 text-amber-900 border border-amber-200 shadow-2xs">
+                        <Utensils className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                        <span>Kitchen Staff Requisition</span>
+                      </span>
+                    );
+                  })()}
+
+                  {/* Target Approver / Requested From Badge */}
+                  {(() => {
+                    const targetStr = order.requestedFrom || (
+                      order.createdBy?.includes('Manager') || order.requesterRole === 'service' ? 'manager' :
+                      order.createdBy?.includes('Accounting') ? 'accounting' : 'purchaser'
+                    );
+                    if (targetStr === 'manager') {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold rounded-lg px-3 py-1 bg-purple-50 text-purple-800 border border-purple-200 shadow-2xs">
+                          <ArrowRight className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                          <span>To:</span>
+                          <Crown className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                          <span>Restaurant Manager</span>
+                        </span>
+                      );
+                    }
+                    if (targetStr === 'accounting') {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold rounded-lg px-3 py-1 bg-blue-50 text-blue-800 border border-blue-200 shadow-2xs">
+                          <ArrowRight className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>To:</span>
+                          <Briefcase className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                          <span>Accounting & Finance</span>
+                        </span>
+                      );
+                    }
+                    return (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-extrabold rounded-lg px-3 py-1 bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
+                        <ArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span>To:</span>
+                        <ShoppingCart className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                        <span>Market Purchaser</span>
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px] text-slate-500 font-normal">
@@ -385,7 +458,7 @@ export default function RequestDetailPage() {
               <div className="flex md:flex-col items-start md:items-end justify-between md:justify-center border-t md:border-t-0 pt-4 md:pt-0 border-slate-100 dark:border-slate-800">
                 <div className="text-left md:text-right">
                   <p className="text-[13px] text-slate-500 font-medium uppercase tracking-wider">Estimated Total</p>
-                  <p className="text-3xl font-bold text-[#0A8F4D] tracking-tight mt-0.5">{order.total}</p>
+                  <p className="text-xl sm:text-2xl font-extrabold text-[#0A8F4D] tracking-tight mt-0.5">{order.total}</p>
                 </div>
                 <div className="text-right mt-1">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[13px] font-medium text-slate-600 dark:text-slate-300">
@@ -474,6 +547,28 @@ export default function RequestDetailPage() {
               </div>
             )}
           </div>
+
+          {/* CASH REQUEST REASON / GENERAL NOTES BANNER */}
+          {(order.notes || order.items.some(i => i.category === 'Petty Cash & Tip Advance' || i.supplierNotes?.includes('Reason:'))) && (
+            <div className="bg-emerald-50/90 border border-emerald-200 rounded-xl p-4 shadow-2xs flex items-start gap-3.5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+                <Banknote className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                    <span>Justification / Reason for Request (មូលហេតុដកប្រាក់)</span>
+                  </h4>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Audit Mandatory
+                  </span>
+                </div>
+                <p className="text-sm font-semibold text-emerald-900 leading-relaxed">
+                  {order.notes?.replace('💵 Money Request Reason:', '').trim() || order.items.find(i => i.supplierNotes?.includes('Reason:'))?.supplierNotes || 'Requisition submitted via standard workflow.'}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* MAIN 4-COLUMN DESKTOP GRID (75% Content / 25% Sidebar) */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">

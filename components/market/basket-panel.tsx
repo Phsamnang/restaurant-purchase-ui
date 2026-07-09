@@ -220,7 +220,7 @@ export function BasketPanel({
             </span>
           </div>
           <div className="flex items-center justify-between gap-2">
-            <div className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 inline-flex items-center gap-1.5 whitespace-nowrap">
+            <div className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 inline-flex items-center gap-1.5 whitespace-nowrap">
               <span>{currency === 'KHR' ? `${Math.round(estimatedTotalCost).toLocaleString()}` : `$${estimatedTotalCost.toFixed(2)}`}</span>
               {currency === 'KHR' && <span>៛</span>}
             </div>
@@ -233,12 +233,12 @@ export function BasketPanel({
           </p>
         </div>
 
-        {/* Intentional High-Contrast Black CTA Button */}
+        {/* High-Impact Review & Send CTA Button */}
         <button
           type="button"
           onClick={onSubmitOrder}
           disabled={totalItemsCount === 0 || submitting}
-          className="whitespace-nowrap w-full bg-slate-900 hover:bg-slate-800 text-white font-black shadow-md transition-all py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none text-sm sm:text-base cursor-pointer"
+          className="whitespace-nowrap w-full bg-[#0A8F4D] hover:bg-[#08733E] text-white font-black shadow-lg shadow-emerald-700/20 transition-all py-4 px-6 rounded-xl flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:shadow-none text-sm sm:text-base cursor-pointer border border-[#0A8F4D]/30"
         >
           {submitting ? (
             <div className="flex items-center gap-2">
@@ -247,9 +247,9 @@ export function BasketPanel({
             </div>
           ) : (
             <>
-              <CheckCircle2 className="w-5 h-5 stroke-[2.5] text-primary" />
+              <CheckCircle2 className="w-5 h-5 stroke-[2.5] text-white" />
               <span>{t('basket.reviewSend')}</span>
-              <ArrowRight className="w-5 h-5 stroke-[2.5] ml-1" />
+              <ArrowRight className="w-5 h-5 stroke-[2.5] ml-1 text-white" />
             </>
           )}
         </button>

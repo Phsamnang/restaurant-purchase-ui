@@ -1,5 +1,7 @@
 'use client';
 
+import { autoLinkOrderToOutcome } from '@/lib/transactions';
+
 export type OrderStatus = 'pending' | 'approved' | 'sent' | 'discrepancy' | 'completed' | 'rejected';
 
 export interface OrderItemDetail {
@@ -28,6 +30,8 @@ export interface OrderRequest {
   approvedBy?: string;
   notes?: string;
   requestType?: 'glossary' | 'stuff' | 'mixed';
+  requesterRole?: 'manager' | 'staff' | 'service';
+  requestedFrom?: 'manager' | 'purchaser' | 'accounting' | string;
 }
 
 const STORAGE_KEY = 'restaurant_orders_v2_erp';
@@ -40,7 +44,9 @@ const DEFAULT_ORDERS: OrderRequest[] = [
     total: '$158.00',
     currency: 'USD',
     requestType: 'stuff',
-    createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
+    requesterRole: 'service',
+    requestedFrom: 'manager',
+    createdBy: 'Sophea Bar [🍸 Service & FOH]',
     notes: 'Urgent Glassware replacement for VIP room & weekly Staff Tip Advance payout request',
     items: [
       { id: 'wine-glass-red', nameEn: 'Red Wine Glass 450ml', nameKh: 'កែវស្រាក្រហមប្រណិត', unit: 'piece', ordered: 12, icon: 'GlassWater', category: 'Glassware & Tableware', estimatedPrice: 4.50, supplierNotes: 'Fragile - handle with care, crystal clear stem', packingStatus: 'pending' },
@@ -55,7 +61,8 @@ const DEFAULT_ORDERS: OrderRequest[] = [
     total: '738,000 ៛',
     currency: 'KHR',
     requestType: 'glossary',
-    createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
+    requesterRole: 'staff',
+    createdBy: 'Chef Sophea [🍳 Kitchen Staff]',
     items: [
       { id: 'pork-belly', nameEn: 'Pork Belly', nameKh: 'សាច់ជ្រូកបីជាន់', unit: 'kg', ordered: 5, icon: 'Beef', category: 'Meat & Poultry', estimatedPrice: 7.50, supplierNotes: 'Fresh morning cut, 50/50 fat ratio', packingStatus: 'pending' },
       { id: 'lemongrass', nameEn: 'Lemongrass', nameKh: 'ស្លឹកគ្រៃ', unit: 'bundle (ដុំ/បាច់)', ordered: 3, icon: 'Leaf', category: 'Vegetables & Herbs', estimatedPrice: 2.00, supplierNotes: 'Trim bottom stems', packingStatus: 'pending' },
@@ -136,6 +143,9 @@ export function saveOrder(newOrder: OrderRequest): void {
     const orders = getOrders();
     const updated = [newOrder, ...orders];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    if (newOrder.status === 'completed') {
+      autoLinkOrderToOutcome(newOrder);
+    }
   } catch (err) {
     console.error('Error saving order to localStorage:', err);
   }
@@ -154,6 +164,9 @@ export function updateOrder(idOrOrder: string | OrderRequest, updates?: Partial<
         : { ...currentOrder, ...idOrOrder, ...updates };
       orders[index] = newOrder;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+      if (newOrder.status === 'completed') {
+        autoLinkOrderToOutcome(newOrder);
+      }
       return newOrder;
     }
   } catch (err) {

@@ -180,17 +180,19 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     scroll-behavior: smooth;
+    font-size: 14px; /* Crisp 14px base typography for enterprise ERP density */
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-inter), var(--font-kantumruy), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
 }
 
 @layer utilities {
   .font-khmer {
-    font-family: 'Kantumruy Pro', sans-serif;
-    line-height: 1.65;
+    font-family: var(--font-kantumruy), 'Kantumruy Pro', sans-serif;
+    line-height: 1.6;
   }
 }

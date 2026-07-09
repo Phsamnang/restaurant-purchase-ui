@@ -8,6 +8,7 @@ export interface Dictionary {
     logout: string;
     switchLang: string;
     brandSub: string;
+    finance: string;
   };
   common: {
     loading: string;
@@ -128,6 +129,20 @@ export interface Dictionary {
     filterDiscrepancy: string;
     filterCompleted: string;
   };
+  finance: {
+    title: string;
+    subtitle: string;
+    income: string;
+    outcome: string;
+    netFlow: string;
+    recordSales: string;
+    recordExpense: string;
+    tabAll: string;
+    tabIncome: string;
+    tabOutcome: string;
+    monthlyReport: string;
+    todayCash: string;
+  };
 }
 
 export const translations: Record<Language, Dictionary> = {
@@ -139,6 +154,7 @@ export const translations: Record<Language, Dictionary> = {
       logout: "Logout",
       switchLang: "Switch to Khmer (ខ្មែរ)",
       brandSub: "Enterprise ERP",
+      finance: "Finance",
     },
     common: {
       loading: "Loading Restaurant POS Catalog...",
@@ -259,6 +275,20 @@ export const translations: Record<Language, Dictionary> = {
       filterDiscrepancy: "Discrepancies",
       filterCompleted: "Received / Completed",
     },
+    finance: {
+      title: "Income & Outcome Tracking",
+      subtitle: "Monitor daily sales revenue, purchase expenses, and net cash flow",
+      income: "Total Income",
+      outcome: "Total Outcome",
+      netFlow: "Net Cash Flow",
+      recordSales: "+ Record Daily Sales",
+      recordExpense: "+ Record Expense",
+      tabAll: "All Transactions",
+      tabIncome: "Income Only",
+      tabOutcome: "Outcome Only",
+      monthlyReport: "Monthly Financial Report",
+      todayCash: "Today's Cash Position",
+    },
   },
   kh: {
     nav: {
@@ -268,6 +298,7 @@ export const translations: Record<Language, Dictionary> = {
       logout: "ចាកចេញ",
       switchLang: "ប្តូរទៅ English (អង់គ្លេស)",
       brandSub: "ប្រព័ន្ធគ្រប់គ្រង ERP",
+      finance: "ហិរញ្ញវត្ថុ",
     },
     common: {
       loading: "កំពុងទាញយកទិន្នន័យទំនិញ...",
@@ -387,6 +418,20 @@ export const translations: Record<Language, Dictionary> = {
       filterSent: "ផ្ញើទៅផ្សារ",
       filterDiscrepancy: "មានខ្វះខូច",
       filterCompleted: "បានទទួល",
+    },
+    finance: {
+      title: "គ្រប់គ្រងចំណូល និងចំណាយ",
+      subtitle: "តាមដានចំណូលលក់ប្រចាំថ្ងៃ ការចំណាយទិញទំនិញ និងលំហូរសាច់ប្រាក់សុទ្ធ",
+      income: "ចំណូលសរុប",
+      outcome: "ចំណាយសរុប",
+      netFlow: "លំហូរសាច់ប្រាក់សុទ្ធ",
+      recordSales: "+ កត់ត្រាចំណូលលក់",
+      recordExpense: "+ កត់ត្រាចំណាយ",
+      tabAll: "ប្រតិបត្តិការទាំងអស់",
+      tabIncome: "ចំណូលតែប៉ុណ្ណោះ",
+      tabOutcome: "ចំណាយតែប៉ុណ្ណោះ",
+      monthlyReport: "របាយការណ៍ហិរញ្ញវត្ថុប្រចាំខែ",
+      todayCash: "ស្ថានភាពសាច់ប្រាក់ថ្ងៃនេះ",
     },
   },
 };

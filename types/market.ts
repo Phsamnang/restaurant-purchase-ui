@@ -650,3 +650,13 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
     requestType: 'stuff',
   },
 ];
+
+export const ALL_CATEGORIES: CategoryItem[] = [
+  ...MARKET_CATEGORIES,
+  ...STUFF_CATEGORIES.filter(c => c.id !== 'all'),
+];
+
+export const ALL_CATALOG: IngredientItem[] = [
+  ...DEFAULT_MARKET_CATALOG,
+  ...DEFAULT_STUFF_CATALOG,
+];

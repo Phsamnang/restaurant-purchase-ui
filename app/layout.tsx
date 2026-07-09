@@ -53,8 +53,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${kantumruy.variable} ${inter.className} bg-slate-50`}>
-      <body className="antialiased min-h-screen bg-slate-50 text-slate-900 font-sans">
+    <html lang="en" data-scroll-behavior="smooth" className={`${inter.variable} ${kantumruy.variable} bg-slate-50`}>
+      <body className="antialiased min-h-screen bg-slate-50 text-slate-900">
         <LanguageProvider>
           <AuthProvider>
             {children}

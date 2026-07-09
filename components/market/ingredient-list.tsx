@@ -1,17 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { IngredientItem, OrderItem } from '@/types/market';
 import { useTranslation } from '@/lib/i18n';
 import { 
   LayoutGrid, Beef, Fish, Carrot, Soup, Wheat, GlassWater, Package, Utensils,
-  Egg, Droplets, CookingPot, Beer, Leaf, Store, ChevronRight, CheckCircle2, Plus
+  Egg, Droplets, CookingPot, Beer, Leaf, Store, CheckCircle2, Plus, Minus, Trash2
 } from 'lucide-react';
 
 interface IngredientListProps {
   items: IngredientItem[];
   orderItems: Record<string, OrderItem>;
-  onSelectIngredient: (item: IngredientItem) => void;
+  onInlineAdd: (item: OrderItem) => void;
+  onInlineRemove: (ingredientId: string) => void;
   selectedCategory?: string;
   currency?: 'KHR' | 'USD';
   onCurrencyChange?: (currency: 'KHR' | 'USD') => void;
@@ -41,11 +42,85 @@ export const renderIngredientIcon = (iconName: string, className = "w-5 h-5") =>
 export function IngredientList({
   items,
   orderItems,
-  onSelectIngredient,
+  onInlineAdd,
+  onInlineRemove,
   currency = 'KHR',
   onCurrencyChange,
 }: IngredientListProps) {
   const { t, language } = useTranslation();
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+
+  // Temporary state for the inline editor
+  const [editQuantity, setEditQuantity] = useState<number>(1);
+  const [editUnit, setEditUnit] = useState<string>('kg');
+  const [editPrice, setEditPrice] = useState<number>(0);
+  const [editCurrency, setEditCurrency] = useState<'KHR' | 'USD'>('KHR');
+
+  const isCashItem = (item: IngredientItem) => {
+    return item.category === 'Petty Cash & Tip Advance' ||
+           item.id.toLowerCase().includes('tip') ||
+           item.id.toLowerCase().includes('cash') ||
+           item.id.toLowerCase().includes('money') ||
+           item.nameEn.toLowerCase().includes('cash') ||
+           item.nameEn.toLowerCase().includes('tip');
+  };
+
+  const handleExpand = (item: IngredientItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (expandedItemId === item.id) {
+      setExpandedItemId(null);
+      return;
+    }
+    const existing = orderItems[item.id];
+    if (existing) {
+      if (isCashItem(item)) {
+        setEditQuantity(1);
+        setEditUnit(existing.unit);
+        setEditPrice(existing.totalCost);
+        setEditCurrency(existing.unit as 'KHR' | 'USD');
+      } else {
+        setEditQuantity(existing.quantity);
+        setEditUnit(existing.unit);
+        setEditPrice(existing.pricePerUnit);
+      }
+    } else {
+      if (isCashItem(item)) {
+        setEditQuantity(1);
+        setEditUnit(item.defaultUnit === 'USD' ? 'USD' : 'KHR');
+        setEditPrice(item.defaultPrice || 0);
+        setEditCurrency(item.defaultUnit === 'USD' ? 'USD' : 'KHR');
+      } else {
+        setEditQuantity(1);
+        setEditUnit(item.defaultUnit || (item.requestType === 'stuff' ? 'piece' : 'kg'));
+        setEditPrice(item.defaultPrice || 0);
+      }
+    }
+    setExpandedItemId(item.id);
+  };
+
+  const handleSave = (item: IngredientItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const cashItem = isCashItem(item);
+    
+    if (cashItem && editPrice <= 0) return;
+    if (!cashItem && editQuantity <= 0) {
+      onInlineRemove(item.id);
+      setExpandedItemId(null);
+      return;
+    }
+
+    const newOrderItem: OrderItem = {
+      ingredient: item,
+      quantity: cashItem ? 1 : editQuantity,
+      unit: cashItem ? editCurrency : editUnit,
+      pricePerUnit: cashItem ? editPrice : editPrice,
+      totalCost: cashItem ? editPrice : Number((editQuantity * editPrice).toFixed(2)),
+      supplier: cashItem ? 'Staff Member / Beneficiary' : (item.requestType === 'stuff' ? 'Standard Equipment Vendor' : 'Local Market Vendor'),
+      notes: '',
+    };
+    onInlineAdd(newOrderItem);
+    setExpandedItemId(null);
+  };
 
   if (items.length === 0) {
     return (
@@ -62,9 +137,9 @@ export function IngredientList({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {/* Table Header - Unified & Scannable */}
-      <div className="grid grid-cols-12 gap-3 bg-slate-50 px-4 sm:px-6 py-3 border-b border-slate-200 items-center">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden pb-4">
+      {/* Table Header */}
+      <div className="grid grid-cols-12 gap-3 bg-slate-50 px-4 sm:px-6 py-3 border-b border-slate-200 items-center sticky top-0 z-10">
         <div className="col-span-6 sm:col-span-5 flex items-center">
           <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.glossary')}</span>
         </div>
@@ -73,32 +148,6 @@ export function IngredientList({
         </div>
         <div className="col-span-2 text-center hidden sm:flex items-center justify-center gap-2">
           <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.priceUnit')}</span>
-          {onCurrencyChange && (
-            <div className="inline-flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300/70 shadow-inner">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onCurrencyChange('KHR'); }}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer ${
-                  currency === 'KHR'
-                    ? 'bg-white text-orange-600 shadow-2xs border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                ៛ KHR
-              </button>
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); onCurrencyChange('USD'); }}
-                className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer ${
-                  currency === 'USD'
-                    ? 'bg-white text-blue-600 shadow-2xs border border-slate-200'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                $ USD
-              </button>
-            </div>
-          )}
         </div>
         <div className="col-span-6 sm:col-span-2 text-right flex items-center justify-end">
           <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.status')}</span>
@@ -109,86 +158,168 @@ export function IngredientList({
       <div className="divide-y divide-slate-100">
         {items.map((item) => {
           const inBasket = orderItems[item.id];
+          const isExpanded = expandedItemId === item.id;
           const mainEn = item.nameEn;
-          const secondaryKh = item.nameKh && item.nameKh !== item.nameEn ? item.nameKh : null;
+          const cashItem = isCashItem(item);
 
           return (
-            <div
-              key={item.id}
-              onClick={() => onSelectIngredient(item)}
-              className={`group grid grid-cols-12 gap-3 px-4 sm:px-6 py-3.5 items-center transition-all duration-200 cursor-pointer ${
-                inBasket
-                  ? 'bg-primary/10 border-l-4 border-l-primary border-y border-y-primary/20 hover:bg-primary/20'
-                  : 'hover:bg-slate-50/80 border-l-4 border-l-transparent'
-              }`}
-            >
-              {/* 1. Icon & Bilingual Name */}
-              <div className="col-span-6 sm:col-span-5 flex items-center gap-3.5 overflow-hidden">
-                <div
-                  className={`p-2.5 rounded-xl flex-shrink-0 transition-colors shadow-2xs ${
-                    inBasket
-                      ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-                      : 'bg-slate-100 text-slate-600 group-hover:bg-primary/20 group-hover:text-slate-900 font-bold'
-                  }`}
-                >
-                  {renderIngredientIcon(item.iconName, "w-5 h-5")}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-sm text-slate-900 truncate">
-                      {mainEn}
-                    </span>
-                    {inBasket && (
-                      <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground shadow-2xs">
-                        <CheckCircle2 className="w-3 h-3 stroke-[3]" />
-                        <span>{t('list.inList')}</span>
-                      </span>
-                    )}
+            <div key={item.id} className="flex flex-col">
+              <div
+                onClick={(e) => handleExpand(item, e)}
+                className={`group grid grid-cols-12 gap-3 px-4 sm:px-6 py-3.5 items-center transition-all duration-200 cursor-pointer ${
+                  inBasket
+                    ? 'bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary'
+                    : isExpanded 
+                    ? 'bg-slate-50 border-l-4 border-l-slate-400' 
+                    : 'hover:bg-slate-50/80 border-l-4 border-l-transparent'
+                }`}
+              >
+                {/* 1. Icon & Name */}
+                <div className="col-span-6 sm:col-span-5 flex items-center gap-3.5 overflow-hidden">
+                  <div
+                    className={`p-2.5 rounded-xl flex-shrink-0 transition-colors shadow-2xs ${
+                      inBasket
+                        ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-primary/20 group-hover:text-slate-900 font-bold'
+                    }`}
+                  >
+                    {renderIngredientIcon(item.iconName, "w-5 h-5")}
                   </div>
-                </div>
-              </div>
-
-              {/* 2. Category Tag (Desktop) */}
-              <div className="col-span-3 hidden sm:flex items-center">
-                <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 truncate">
-                  {item.category}
-                </span>
-              </div>
-
-              {/* 3. Estimated Price & Default Unit (Desktop) */}
-              <div className="col-span-2 hidden sm:flex flex-col items-center justify-center text-center">
-                <span className="font-black text-sm text-slate-800">
-                  {currency === 'KHR' ? `${(item.defaultPrice * 4000).toLocaleString()} ៛` : `$${item.defaultPrice.toFixed(2)}`}
-                </span>
-                <span className="text-[11px] font-semibold text-slate-400 uppercase">
-                  {t('list.per')} {item.defaultUnit}
-                </span>
-              </div>
-
-              {/* 4. Action (+) or In List Status */}
-              <div className="col-span-6 sm:col-span-2 flex items-center justify-end gap-2.5">
-                {inBasket ? (
-                  <div className="flex items-center gap-2">
-                    <span className="sm:hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>{inBasket.quantity}</span>
-                    </span>
-                    <span className="hidden md:inline-flex text-xs font-black text-slate-900 bg-primary/25 px-3 py-1 rounded-xl border border-primary/40 shadow-2xs">
-                      {inBasket.quantity} {inBasket.unit}
-                    </span>
-                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
-                      <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900 truncate">
+                        {mainEn}
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-primary hover:text-primary-foreground text-slate-700 font-bold text-xs transition-all border border-slate-200 shadow-2xs group-hover:border-primary/40">
-                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
-                      <span>Add</span>
-                    </span>
-                  </div>
-                )}
+                </div>
+
+                {/* 2. Category Tag */}
+                <div className="col-span-3 hidden sm:flex items-center">
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 text-xs font-bold text-slate-700 truncate">
+                    {item.category}
+                  </span>
+                </div>
+
+                {/* 3. Estimated Price */}
+                <div className="col-span-2 hidden sm:flex flex-col items-center justify-center text-center">
+                  <span className="font-black text-sm text-slate-800">
+                    {currency === 'KHR' ? `${(item.defaultPrice * 4000).toLocaleString()} ៛` : `$${item.defaultPrice.toFixed(2)}`}
+                  </span>
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase">
+                    {cashItem ? 'Est Amount' : `${t('list.per')} ${item.defaultUnit}`}
+                  </span>
+                </div>
+
+                {/* 4. Action */}
+                <div className="col-span-6 sm:col-span-2 flex items-center justify-end gap-2.5">
+                  {inBasket ? (
+                    <div className="flex items-center gap-2">
+                      <span className="hidden md:inline-flex text-xs font-black text-slate-900 bg-primary/25 px-3 py-1 rounded-xl border border-primary/40 shadow-2xs">
+                        {cashItem ? `${inBasket.totalCost} ${inBasket.unit}` : `${inBasket.quantity} ${inBasket.unit}`}
+                      </span>
+                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
+                        <CheckCircle2 className="w-4 h-4 stroke-[3]" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-primary hover:text-primary-foreground text-slate-700 font-bold text-xs transition-all border border-slate-200 shadow-2xs">
+                        <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                        <span>Add</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* INLINE EDIT ROW */}
+              {isExpanded && (
+                <div className="px-4 sm:px-6 py-4 bg-slate-50 border-t border-slate-100 shadow-inner flex flex-col sm:flex-row sm:items-center gap-4 justify-between border-l-4 border-l-slate-400">
+                  {cashItem ? (
+                    // Cash Item Controls
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden shadow-2xs h-11">
+                        <button
+                          onClick={() => setEditCurrency('USD')}
+                          className={`px-3 font-black text-xs h-full transition-colors ${editCurrency === 'USD' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                        >
+                          $ USD
+                        </button>
+                        <button
+                          onClick={() => setEditCurrency('KHR')}
+                          className={`px-3 font-black text-xs h-full transition-colors ${editCurrency === 'KHR' ? 'bg-orange-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                        >
+                          ៛ KHR
+                        </button>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={editPrice === 0 ? '' : editPrice}
+                        onChange={(e) => setEditPrice(parseFloat(e.target.value) || 0)}
+                        placeholder="Amount"
+                        className="h-11 w-32 px-3 border border-slate-300 rounded-xl font-bold text-sm bg-white focus:outline-none focus:border-primary shadow-2xs"
+                      />
+                    </div>
+                  ) : (
+                    // Standard Item Controls
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden shadow-2xs">
+                        <button
+                          onClick={() => setEditQuantity(q => Math.max(0.5, q - 1))}
+                          className="w-11 h-11 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        >
+                          <Minus className="w-4 h-4 stroke-[3]" />
+                        </button>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={editQuantity}
+                          onChange={(e) => setEditQuantity(parseFloat(e.target.value) || 0)}
+                          className="w-14 h-11 text-center font-black text-sm border-x border-slate-200 bg-white focus:outline-none"
+                        />
+                        <button
+                          onClick={() => setEditQuantity(q => q + 1)}
+                          className="w-11 h-11 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        >
+                          <Plus className="w-4 h-4 stroke-[3]" />
+                        </button>
+                      </div>
+
+                      <select
+                        value={editUnit}
+                        onChange={(e) => setEditUnit(e.target.value)}
+                        className="h-11 px-3 border border-slate-300 rounded-xl font-bold text-sm bg-white focus:outline-none focus:border-primary shadow-2xs"
+                      >
+                        {(item.allowedUnits || [item.defaultUnit]).map(u => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 sm:ml-auto">
+                    {inBasket && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onInlineRemove(item.id); setExpandedItemId(null); }}
+                        className="px-4 h-11 rounded-xl text-red-600 bg-red-50 hover:bg-red-100 font-bold text-sm transition-colors border border-red-200 flex items-center justify-center"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => handleSave(item, e)}
+                      className="px-6 h-11 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-sm hover:bg-primary-hover active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      {inBasket ? 'Update' : 'Confirm'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
