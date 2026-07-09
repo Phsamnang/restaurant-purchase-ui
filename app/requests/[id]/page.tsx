@@ -41,7 +41,10 @@ import {
   Utensils,
   ArrowRight,
   Wallet,
-  ShoppingCart
+  ShoppingCart,
+  X,
+  ArrowRightLeft,
+  RefreshCw
 } from 'lucide-react';
 
 // ── Portal: mounts children directly on document.body so @media print can isolate them
@@ -67,8 +70,8 @@ export default function RequestDetailPage() {
   const [printQueue, setPrintQueue] = useState<OrderRequest[]>([]);
   const [printCurrency, setPrintCurrency] = useState<'KHR' | 'USD'>('KHR');
 
-  // Stage 3 Check-in state
-  const [receivedData, setReceivedData] = useState<Record<string, { received: number; isCorrect: boolean; isVerified: boolean; unit?: string }>>({});
+  // Stage 3 Check-in & Actual Price state
+  const [receivedData, setReceivedData] = useState<Record<string, { received: number; isCorrect: boolean; isVerified: boolean; unit?: string; actualPrice?: number | string; actualPriceCurrency?: 'USD' | 'KHR' }>>({});
 
 
   useEffect(() => {
@@ -77,7 +80,7 @@ export default function RequestDetailPage() {
       if (data) {
         setOrder(data);
         // Initialize received data
-        const initialData: Record<string, { received: number; isCorrect: boolean; isVerified: boolean; unit?: string }> = {};
+        const initialData: Record<string, { received: number; isCorrect: boolean; isVerified: boolean; unit?: string; actualPrice?: number | string; actualPriceCurrency?: 'USD' | 'KHR' }> = {};
         data.items.forEach((item) => {
           const isCorrect = item.received === undefined || item.received === item.ordered;
           const isVerified = item.received !== undefined || data.status === 'completed';
@@ -85,7 +88,9 @@ export default function RequestDetailPage() {
             received: item.received !== undefined ? item.received : item.ordered,
             isCorrect,
             isVerified,
-            unit: item.unit
+            unit: item.unit,
+            actualPrice: item.actualPrice !== undefined ? item.actualPrice : item.estimatedPrice,
+            actualPriceCurrency: item.actualPriceCurrency || data.currency || 'USD'
           };
         });
         setReceivedData(initialData);
@@ -93,7 +98,7 @@ export default function RequestDetailPage() {
     }
   }, [id]);
 
-  // Handle Item Checkbox Selection
+  // Handle Item Checkbox Selection & Price Entry
   const toggleSelectItem = (itemId: string) => {
     setSelectedItems((prev) => {
       const next = new Set(prev);
@@ -101,6 +106,13 @@ export default function RequestDetailPage() {
         next.delete(itemId);
       } else {
         next.add(itemId);
+        // Ensure initial actual price exists in receivedData when checked
+        if (!receivedData[itemId]?.actualPrice && order) {
+          const item = order.items.find(i => i.id === itemId);
+          if (item && item.estimatedPrice !== undefined) {
+            handleUpdateActualPrice(itemId, item.actualPrice !== undefined ? item.actualPrice : item.estimatedPrice);
+          }
+        }
       }
       return next;
     });
@@ -159,22 +171,80 @@ export default function RequestDetailPage() {
     }, 150);
   };
 
-  // Stage 3 Check-in Handlers
-  const handleMarkCorrect = (itemId: string, orderedQty: number) => {
+  // Stage 3 Check-in & Price Handlers
+  const handleUpdateActualPrice = (itemId: string, priceVal: number | string) => {
+    if (!order) return;
+    const validPrice = typeof priceVal === 'string' && priceVal === '' ? '' : (isNaN(Number(priceVal)) ? '' : Math.max(0, Number(priceVal)));
+    
     setReceivedData((prev) => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        received: orderedQty,
-        isCorrect: true,
-        isVerified: true
+        actualPrice: validPrice
       }
     }));
+
+    const numVal = validPrice === '' ? undefined : Number(validPrice);
+    const updatedItems = order.items.map((item) =>
+      item.id === itemId ? { ...item, actualPrice: numVal } : item
+    );
+    const updated = updateOrder(order.id, { items: updatedItems });
+    if (updated) setOrder(updated);
+  };
+
+  const handleClearActualPrice = (itemId: string) => {
+    if (!order) return;
+    setReceivedData((prev) => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        actualPrice: ''
+      }
+    }));
+    const updatedItems = order.items.map((item) =>
+      item.id === itemId ? { ...item, actualPrice: undefined } : item
+    );
+    const updated = updateOrder(order.id, { items: updatedItems });
+    if (updated) setOrder(updated);
+  };
+
+  const handleToggleActualPriceCurrency = (itemId: string) => {
+    if (!order) return;
+    const currentCur = receivedData[itemId]?.actualPriceCurrency || order.items.find(i => i.id === itemId)?.actualPriceCurrency || order.currency || 'USD';
+    const nextCur: 'USD' | 'KHR' = currentCur === 'USD' ? 'KHR' : 'USD';
+    setReceivedData((prev) => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        actualPriceCurrency: nextCur
+      }
+    }));
+    const updatedItems = order.items.map((item) =>
+      item.id === itemId ? { ...item, actualPriceCurrency: nextCur } : item
+    );
+    const updated = updateOrder(order.id, { items: updatedItems });
+    if (updated) setOrder(updated);
+  };
+
+  const handleMarkCorrect = (itemId: string, orderedQty: number) => {
+    setReceivedData((prev) => {
+      const current = prev[itemId] || { received: orderedQty, isCorrect: true, isVerified: false, actualPrice: order?.items.find(i => i.id === itemId)?.estimatedPrice };
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          received: orderedQty,
+          isCorrect: true,
+          isVerified: true,
+          actualPrice: current.actualPrice !== undefined ? current.actualPrice : order?.items.find(i => i.id === itemId)?.estimatedPrice
+        }
+      };
+    });
   };
 
   const handleToggleDiscrepancy = (itemId: string, orderedQty: number) => {
     setReceivedData((prev) => {
-      const current = prev[itemId] || { received: orderedQty, isCorrect: true, isVerified: false };
+      const current = prev[itemId] || { received: orderedQty, isCorrect: true, isVerified: false, actualPrice: order?.items.find(i => i.id === itemId)?.estimatedPrice };
       const newIsCorrect = !current.isCorrect;
       return {
         ...prev,
@@ -182,7 +252,8 @@ export default function RequestDetailPage() {
           ...current,
           received: newIsCorrect ? orderedQty : Math.max(0, orderedQty - 1),
           isCorrect: newIsCorrect,
-          isVerified: true
+          isVerified: true,
+          actualPrice: current.actualPrice !== undefined ? current.actualPrice : order?.items.find(i => i.id === itemId)?.estimatedPrice
         }
       };
     });
@@ -190,15 +261,19 @@ export default function RequestDetailPage() {
 
   const handleUpdateReceivedQty = (itemId: string, qty: number, orderedQty: number) => {
     const validQty = Math.max(0, qty);
-    setReceivedData((prev) => ({
-      ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        received: validQty,
-        isCorrect: validQty === orderedQty,
-        isVerified: true
-      }
-    }));
+    setReceivedData((prev) => {
+      const current = prev[itemId] || { received: orderedQty, isCorrect: true, isVerified: false, actualPrice: order?.items.find(i => i.id === itemId)?.estimatedPrice };
+      return {
+        ...prev,
+        [itemId]: {
+          ...current,
+          received: validQty,
+          isCorrect: validQty === orderedQty,
+          isVerified: true,
+          actualPrice: current.actualPrice !== undefined ? current.actualPrice : order?.items.find(i => i.id === itemId)?.estimatedPrice
+        }
+      };
+    });
   };
 
   const handleMarkAllRemainingCorrect = () => {
@@ -211,7 +286,8 @@ export default function RequestDetailPage() {
             received: item.ordered,
             isCorrect: true,
             isVerified: true,
-            unit: item.unit
+            unit: item.unit,
+            actualPrice: updated[item.id]?.actualPrice !== undefined ? updated[item.id].actualPrice : (item.actualPrice !== undefined ? item.actualPrice : item.estimatedPrice)
           };
         }
       });
@@ -236,6 +312,7 @@ export default function RequestDetailPage() {
         ...item,
         unit: rData.unit || item.unit,
         received: rData.received,
+        actualPrice: rData.actualPrice !== undefined ? rData.actualPrice : item.actualPrice,
         discrepancyReason: !rData.isCorrect ? 'Discrepancy flagged during check-in' : undefined
       };
     });
@@ -454,13 +531,44 @@ export default function RequestDetailPage() {
                 </div>
               </div>
 
-              {/* Right Side: Estimated Total & Item Count */}
+              {/* Right Side: Estimated Total vs Actual Total & Item Count */}
               <div className="flex md:flex-col items-start md:items-end justify-between md:justify-center border-t md:border-t-0 pt-4 md:pt-0 border-slate-100 dark:border-slate-800">
-                <div className="text-left md:text-right">
-                  <p className="text-[13px] text-slate-500 font-medium uppercase tracking-wider">Estimated Total</p>
-                  <p className="text-xl sm:text-2xl font-extrabold text-[#0A8F4D] tracking-tight mt-0.5">{order.total}</p>
+                <div className="text-left md:text-right space-y-0.5">
+                  {order.items.some(i => i.actualPrice !== undefined && i.actualPrice !== null && i.actualPrice !== 0) ? (
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-400 flex items-center md:justify-end gap-1">
+                        <Banknote className="w-3.5 h-3.5" />
+                        <span>Actual Total / តម្លៃជាក់ស្តែង</span>
+                      </p>
+                      <p className="text-xl sm:text-2xl font-black text-[#0A8F4D] dark:text-emerald-400 tracking-tight mt-0.5">
+                        {order.currency === 'KHR'
+                          ? `${Math.round(order.items.reduce((acc, curr) => {
+                              const p = curr.actualPrice !== undefined ? curr.actualPrice : (curr.estimatedPrice || 0);
+                              const c = curr.actualPriceCurrency || order.currency || 'USD';
+                              const qty = curr.received ?? curr.ordered;
+                              const cost = p * qty;
+                              return acc + (c === 'KHR' ? cost : cost * 4000);
+                            }, 0)).toLocaleString()} ៛`
+                          : `$${order.items.reduce((acc, curr) => {
+                              const p = curr.actualPrice !== undefined ? curr.actualPrice : (curr.estimatedPrice || 0);
+                              const c = curr.actualPriceCurrency || order.currency || 'USD';
+                              const qty = curr.received ?? curr.ordered;
+                              const cost = p * qty;
+                              return acc + (c === 'USD' ? cost : cost / 4000);
+                            }, 0).toFixed(2)}`}
+                      </p>
+                      <p className="text-[11px] font-semibold text-slate-400">
+                        Estimated: {order.total}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[13px] text-slate-500 font-medium uppercase tracking-wider">Estimated Total</p>
+                      <p className="text-xl sm:text-2xl font-extrabold text-[#0A8F4D] tracking-tight mt-0.5">{order.total}</p>
+                    </div>
+                  )}
                 </div>
-                <div className="text-right mt-1">
+                <div className="text-right mt-1.5">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[13px] font-medium text-slate-600 dark:text-slate-300">
                     <Package className="w-3.5 h-3.5" />
                     <span>{order.items.length} {language === 'kh' ? 'មុខទំនិញ' : 'Items'}</span>
@@ -629,6 +737,7 @@ export default function RequestDetailPage() {
                           <th className="py-4 px-4 text-right min-w-[130px] whitespace-nowrap">Requested Qty</th>
                           <th className="py-4 px-4 min-w-[100px] whitespace-nowrap">Unit</th>
                           <th className="py-4 px-4 text-right min-w-[140px] whitespace-nowrap">Estimated Price</th>
+                          <th className="py-4 px-4 text-right min-w-[170px] whitespace-nowrap">Actual Price / តម្លៃជាក់ស្តែង</th>
                           <th className="py-4 px-4 min-w-[200px]">Supplier Notes</th>
                           <th className="py-4 px-4 text-center min-w-[130px] whitespace-nowrap">Packing Status</th>
                         </tr>
@@ -688,6 +797,64 @@ export default function RequestDetailPage() {
                                 <span className="block text-[11px] text-slate-400 font-normal">
                                   (${item.estimatedPrice?.toFixed(2) || '0.00'}/{item.unit})
                                 </span>
+                              </td>
+
+                              <td className="py-3 px-4 text-right whitespace-nowrap">
+                                {isSelected ? (
+                                  <div className="inline-flex items-center justify-end gap-1 bg-emerald-50/90 dark:bg-emerald-950/40 p-1 rounded-xl border border-emerald-400 dark:border-emerald-700 shadow-2xs animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleActualPriceCurrency(item.id)}
+                                      title={language === 'kh' ? 'ប្តូររូបិយប័ណ្ណ (USD/KHR)' : 'Switch Currency ($/៛)'}
+                                      className="px-1.5 py-1 rounded-md bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/80 text-xs font-black text-[#0A8F4D] dark:text-emerald-300 flex items-center gap-1 transition-colors"
+                                    >
+                                      <span>{(item.actualPriceCurrency || order.currency) === 'KHR' ? '៛' : '$'}</span>
+                                      <ArrowRightLeft className="w-2.5 h-2.5 opacity-75" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0"
+                                      placeholder=""
+                                      value={
+                                        item.actualPrice !== undefined
+                                          ? item.actualPrice
+                                          : item.estimatedPrice !== undefined && item.estimatedPrice !== 0
+                                          ? item.estimatedPrice
+                                          : ''
+                                      }
+                                      onChange={(e) => handleUpdateActualPrice(item.id, e.target.value)}
+                                      className="w-20 h-7 px-1.5 bg-white dark:bg-slate-900 border border-emerald-500 dark:border-emerald-600 rounded-lg font-extrabold text-sm text-emerald-950 dark:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-right tabular-nums shadow-inner"
+                                    />
+                                    {(item.actualPrice !== undefined ? item.actualPrice !== '' && item.actualPrice !== null : item.estimatedPrice !== undefined) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleClearActualPrice(item.id)}
+                                        title={language === 'kh' ? 'លុបតម្លៃ' : 'Clear price'}
+                                        className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"
+                                      >
+                                        <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                                      </button>
+                                    )}
+                                    <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 pr-1">
+                                      /{item.unit?.split('(')[0].trim() || 'unit'}
+                                    </span>
+                                  </div>
+                                ) : item.actualPrice !== undefined && item.actualPrice !== '' && item.actualPrice !== 0 ? (
+                                  <div className="text-right font-extrabold text-sm text-[#0A8F4D] dark:text-emerald-400">
+                                    {(item.actualPriceCurrency || order.currency) === 'KHR'
+                                      ? `${Math.round(Number(item.actualPrice) * (item.received ?? item.ordered)).toLocaleString()} ៛`
+                                      : `$${(Number(item.actualPrice) * (item.received ?? item.ordered)).toFixed(2)}`}
+                                    <span className="block text-[11px] text-slate-400 font-normal">
+                                      ({(item.actualPriceCurrency || order.currency) === 'KHR' ? `${Math.round(Number(item.actualPrice)).toLocaleString()} ៛` : `$${Number(item.actualPrice).toFixed(2)}`}/{item.unit?.split('(')[0].trim() || 'unit'})
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-400 font-medium italic flex items-center justify-end gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600" />
+                                    <span>{language === 'kh' ? 'ជ្រើសរើសដើម្បីបញ្ចូ លតម្លៃ' : 'Check to enter price'}</span>
+                                  </span>
+                                )}
                               </td>
 
                               <td className="py-4 px-4 text-[13px] text-slate-500 italic max-w-xs truncate">
@@ -808,6 +975,57 @@ export default function RequestDetailPage() {
                             <span className="font-semibold text-amber-800 dark:text-amber-400 not-italic flex-shrink-0">Notes:</span>
                             <span className="text-amber-900 dark:text-amber-300 break-words">{item.supplierNotes || 'Standard market grade, clean pack'}</span>
                           </div>
+
+                          {/* Actual Price Entry (Mobile Card) */}
+                          {isSelected ? (
+                            <div className="mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/30 p-3 rounded-xl flex items-center justify-between gap-3 shadow-2xs animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
+                              <label className="text-xs font-black text-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
+                                <Banknote className="w-4 h-4 text-emerald-600" />
+                                <span>{language === 'kh' ? 'តម្លៃជាក់ស្តែង' : 'Actual Price'} ({(item.actualPriceCurrency || order.currency) === 'KHR' ? '៛' : '$'}/{item.unit.split('(')[0].trim()}):</span>
+                              </label>
+                              <div className="flex items-center gap-1.5 bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-emerald-500 shadow-inner">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleActualPriceCurrency(item.id)}
+                                  title={language === 'kh' ? 'ប្តូររូបិយប័ណ្ណ (USD/KHR)' : 'Switch Currency ($/៛)'}
+                                  className="px-1.5 py-0.5 rounded bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/80 text-xs font-black text-[#0A8F4D] dark:text-emerald-300 flex items-center gap-1 transition-colors"
+                                >
+                                  <span>{(item.actualPriceCurrency || order.currency) === 'KHR' ? '៛' : '$'}</span>
+                                  <ArrowRightLeft className="w-2.5 h-2.5 opacity-75" />
+                                </button>
+                                <input
+                                  type="number"
+                                  step="any"
+                                  min="0"
+                                  placeholder=""
+                                  value={
+                                    item.actualPrice !== undefined
+                                      ? item.actualPrice
+                                      : item.estimatedPrice !== undefined && item.estimatedPrice !== 0
+                                      ? item.estimatedPrice
+                                      : ''
+                                  }
+                                  onChange={(e) => handleUpdateActualPrice(item.id, e.target.value)}
+                                  className="w-20 font-extrabold text-sm text-emerald-950 dark:text-white text-right bg-transparent focus:outline-none tabular-nums"
+                                />
+                                {(item.actualPrice !== undefined ? item.actualPrice !== '' && item.actualPrice !== null : item.estimatedPrice !== undefined) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleClearActualPrice(item.id)}
+                                    title={language === 'kh' ? 'លុបតម្លៃ' : 'Clear price'}
+                                    className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5 stroke-[2.5]" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : item.actualPrice !== undefined && item.actualPrice !== '' && item.actualPrice !== 0 && (
+                            <div className="mt-2.5 flex items-center justify-between text-xs font-bold bg-emerald-50/60 dark:bg-emerald-950/20 px-3 py-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
+                              <span>{language === 'kh' ? 'តម្លៃជាក់ស្តែង/ឯកតា:' : 'Actual Price/Unit:'}</span>
+                              <span>{(item.actualPriceCurrency || order.currency) === 'KHR' ? `${Math.round(Number(item.actualPrice)).toLocaleString()} ៛` : `$${Number(item.actualPrice).toFixed(2)}`}</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -930,39 +1148,101 @@ export default function RequestDetailPage() {
                             </div>
                           </div>
 
-                          {/* Inline Quantity Adjuster for Discrepancy */}
-                          {!data.isCorrect && data.isVerified && (
-                            <div className="mt-4 pt-4 border-t border-[#EF4444]/20 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-[#EF4444]/5 p-4 rounded-xl animate-in fade-in duration-200">
+                          {/* Inline Actual Price & Quantity Adjuster for Checked-in Items */}
+                          {data.isVerified && (
+                            <div className={`mt-4 pt-4 border-t ${
+                              data.isCorrect 
+                                ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20' 
+                                : 'border-[#EF4444]/20 bg-[#EF4444]/5'
+                            } p-4 rounded-xl grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-200`}>
+                              
+                              {/* Actual Price Input */}
                               <div>
-                                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                                  {language === 'kh' ? 'ចំនួនទទួលបានពិតប្រាកដ' : 'Actual Quantity Received'}
+                                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                                  <span className="flex items-center gap-1.5">
+                                    <Banknote className="w-3.5 h-3.5 text-[#0A8F4D]" />
+                                    <span>{language === 'kh' ? 'តម្លៃទិញជាក់ស្តែង / ឯកតា' : 'Actual Purchased Price / Unit'}</span>
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 font-normal">
+                                    ({language === 'kh' ? 'ប៉ាន់ស្មាន:' : 'Est:'} {order.currency === 'KHR' ? `${Math.round(item.estimatedPrice || 0).toLocaleString()} ៛` : `$${(item.estimatedPrice || 0).toFixed(2)}`})
+                                  </span>
                                 </label>
                                 <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateReceivedQty(item.id, data.received - 1, item.ordered)}
-                                    className="w-9 h-9 rounded-lg border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold shadow-2xs active:scale-95"
-                                  >
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                  <input
-                                    type="number"
-                                    value={data.received === 0 ? '' : data.received}
-                                    onChange={(e) => handleUpdateReceivedQty(item.id, parseFloat(e.target.value || '0'), item.ordered)}
-                                    min="0"
-                                    step="any"
-                                    className="w-24 h-9 text-center bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 rounded-lg font-bold text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EF4444]"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateReceivedQty(item.id, data.received + 1, item.ordered)}
-                                    className="w-9 h-9 rounded-lg border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold shadow-2xs active:scale-95"
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                  <span className="text-xs font-semibold text-slate-500">{item.unit}</span>
+                                  <div className="flex items-center gap-1.5 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 shadow-2xs focus-within:border-[#0A8F4D] focus-within:ring-2 focus-within:ring-[#0A8F4D]/20 w-full sm:w-64">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleActualPriceCurrency(item.id)}
+                                      title={language === 'kh' ? 'ប្តូររូបិយប័ណ្ណ (USD/KHR)' : 'Switch Currency ($/៛)'}
+                                      className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 dark:bg-emerald-900/80 text-xs font-black text-[#0A8F4D] dark:text-emerald-300 flex items-center gap-1 transition-colors shrink-0"
+                                    >
+                                      <span>{(data.actualPriceCurrency || item.actualPriceCurrency || order.currency) === 'KHR' ? '៛' : '$'}</span>
+                                      <ArrowRightLeft className="w-3 h-3 opacity-80" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      step="any"
+                                      min="0"
+                                      placeholder=""
+                                      value={
+                                        data.actualPrice !== undefined
+                                          ? data.actualPrice
+                                          : item.actualPrice !== undefined
+                                          ? item.actualPrice
+                                          : item.estimatedPrice !== undefined && item.estimatedPrice !== 0
+                                          ? item.estimatedPrice
+                                          : ''
+                                      }
+                                      onChange={(e) => handleUpdateActualPrice(item.id, e.target.value)}
+                                      className="w-full bg-transparent font-black text-sm text-slate-900 dark:text-white focus:outline-none tabular-nums min-w-16"
+                                    />
+                                    {(data.actualPrice !== undefined ? data.actualPrice !== '' && data.actualPrice !== null : item.actualPrice !== undefined || item.estimatedPrice !== undefined) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleClearActualPrice(item.id)}
+                                        title={language === 'kh' ? 'លុបតម្លៃ' : 'Clear price'}
+                                        className="p-1 rounded-md text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0"
+                                      >
+                                        <X className="w-4 h-4 stroke-[2.5]" />
+                                      </button>
+                                    )}
+                                    <span className="text-xs font-semibold text-slate-500 pr-1 shrink-0">/{item.unit?.split('(')[0].trim()}</span>
+                                  </div>
                                 </div>
                               </div>
+
+                              {/* Actual Quantity Received (only when Discrepancy/Flagged) */}
+                              {!data.isCorrect && (
+                                <div>
+                                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                                    {language === 'kh' ? 'ចំនួនទទួលបានពិតប្រាកដ' : 'Actual Quantity Received'}
+                                  </label>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateReceivedQty(item.id, data.received - 1, item.ordered)}
+                                      className="w-9 h-9 rounded-lg border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold shadow-2xs active:scale-95"
+                                    >
+                                      <Minus className="w-4 h-4" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={data.received === 0 ? '' : data.received}
+                                      onChange={(e) => handleUpdateReceivedQty(item.id, parseFloat(e.target.value || '0'), item.ordered)}
+                                      min="0"
+                                      step="any"
+                                      className="w-24 h-9 text-center bg-white dark:bg-slate-800 border border-[#E5E7EB] dark:border-slate-700 rounded-lg font-bold text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#EF4444]"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateReceivedQty(item.id, data.received + 1, item.ordered)}
+                                      className="w-9 h-9 rounded-lg border border-[#E5E7EB] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold shadow-2xs active:scale-95"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                    <span className="text-xs font-semibold text-slate-500">{item.unit}</span>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

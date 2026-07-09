@@ -872,7 +872,7 @@ export default function NewMarketOrderPage() {
                 step="0.01"
                 min="0"
                 required
-                placeholder="0.00"
+                placeholder=""
                 value={moneyAmount || ''}
                 onChange={(e) => setMoneyAmount(parseFloat(e.target.value) || 0)}
                 className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-black text-base text-emerald-700 focus:outline-none focus:border-emerald-600"

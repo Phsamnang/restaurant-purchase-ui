@@ -11,6 +11,8 @@ export interface OrderItemDetail {
   unit: string;
   ordered: number;
   received?: number;
+  actualPrice?: number;
+  actualPriceCurrency?: 'USD' | 'KHR';
   discrepancyReason?: string;
   icon?: string;
   category?: string;
