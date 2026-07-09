@@ -14,16 +14,23 @@ import {
 import { 
   ChevronLeft, ChevronRight, Filter 
 } from 'lucide-react';
-import { MARKET_CATEGORIES, DEFAULT_MARKET_CATALOG } from '@/types/market';
+import { MARKET_CATEGORIES, DEFAULT_MARKET_CATALOG, CategoryItem, IngredientItem } from '@/types/market';
 import { renderIngredientIcon } from './ingredient-list';
 import { useTranslation } from '@/lib/i18n';
 
 interface CategoryBarProps {
   selectedCategory?: string;
   onSelectCategory?: (categoryId: string) => void;
+  categories?: CategoryItem[];
+  catalog?: IngredientItem[];
 }
 
-function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarProps) {
+function CategoryBarContent({ 
+  selectedCategory, 
+  onSelectCategory,
+  categories = MARKET_CATEGORIES,
+  catalog = DEFAULT_MARKET_CATALOG
+}: CategoryBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -32,7 +39,7 @@ function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarP
   const { language } = useTranslation();
   
   const activeCategory = selectedCategory || searchParams?.get('category') || 'all';
-  const activeCatObj = MARKET_CATEGORIES.find(c => c.id === activeCategory) || MARKET_CATEGORIES[0];
+  const activeCatObj = categories.find(c => c.id === activeCategory) || categories[0] || MARKET_CATEGORIES[0];
 
   const handleSelectCategory = (categoryId: string) => {
     if (onSelectCategory) {
@@ -62,8 +69,8 @@ function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarP
   };
 
   const getCategoryCount = (catId: string) => {
-    if (catId === 'all') return DEFAULT_MARKET_CATALOG.length;
-    return DEFAULT_MARKET_CATALOG.filter(item => item.category === catId).length;
+    if (catId === 'all') return catalog.length;
+    return catalog.filter(item => item.category === catId).length;
   };
 
   return (
@@ -108,7 +115,7 @@ function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarP
 
               {/* 2. MOBILE DRILL-DOWN GRID (Inside Drawer): 2-column vertical grid */}
               <div className="p-4 grid grid-cols-2 gap-3">
-                {MARKET_CATEGORIES.map((cat) => {
+                {categories.map((cat) => {
                   const isSelected = activeCategory === cat.id;
                   const count = getCategoryCount(cat.id);
                   return (
@@ -140,18 +147,11 @@ function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarP
                           {count}
                         </span>
                       </div>
-
-                      {/* Stacked bilingual text format */}
-                      <div className="flex flex-col mt-1">
-                        <span className={`font-semibold text-xs leading-tight tracking-tight ${
+                      <div className="mt-2">
+                        <span className={`font-bold text-xs leading-tight tracking-tight block ${
                           isSelected ? 'text-white' : 'text-slate-900'
                         }`}>
-                          {cat.nameEn}
-                        </span>
-                        <span className={`font-kantumruy text-[11px] leading-relaxed mt-0.5 font-light ${
-                          isSelected ? 'text-white/90' : 'text-slate-500'
-                        }`}>
-                          {cat.nameKh}
+                          {language === 'kh' ? (cat.nameKh || cat.nameEn) : cat.nameEn}
                         </span>
                       </div>
                     </button>
@@ -174,16 +174,16 @@ function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarP
           </button>
 
           {/* Component Structure & Layout: Wide horizontal scroll container */}
-          <ScrollArea ref={scrollRef} orientation="horizontal" className="w-full whitespace-nowrap">
+          <ScrollArea ref={scrollRef} className="w-full whitespace-nowrap">
             <div className="flex items-center gap-2.5 pb-2 pt-1 flex-nowrap">
-              {MARKET_CATEGORIES.map((cat) => {
+              {categories.map((cat) => {
                 const isSelected = activeCategory === cat.id;
                 const count = getCategoryCount(cat.id);
                 return (
                   <button
                     key={cat.id}
                     onClick={() => handleSelectCategory(cat.id)}
-                    className={`group inline-flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl border text-left transition-all flex-shrink-0 shadow-2xs cursor-pointer ${
+                    className={`group inline-flex items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl border text-left transition-all flex-shrink-0 shadow-2xs cursor-pointer ${
                       isSelected
                         ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20 scale-[1.01] font-bold'
                         : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
@@ -196,28 +196,17 @@ function CategoryBarContent({ selectedCategory, onSelectCategory }: CategoryBarP
                       {renderIngredientIcon(cat.iconName, "w-4 h-4")}
                     </div>
 
-                    {/* Localization & Text Stacking: Stacked vertically without inline slashes */}
-                    <div className="flex flex-col py-0.5">
-                      <span className={`font-semibold text-xs leading-tight tracking-tight ${
-                        isSelected ? 'text-primary-foreground' : 'text-slate-900'
-                      }`}>
-                        {cat.nameEn}
-                      </span>
-                      <span className={`font-kantumruy text-[11px] leading-relaxed mt-0.5 font-light tracking-normal ${
-                        isSelected ? 'text-primary-foreground/90' : 'text-slate-500'
-                      }`}>
-                        {cat.nameKh}
-                      </span>
-                    </div>
+                    {/* Single-line Label without secondary clutter */}
+                    <span className={`font-bold text-xs sm:text-sm tracking-tight ${
+                      isSelected ? 'text-primary-foreground' : 'text-slate-900'
+                    }`}>
+                      {language === 'kh' ? (cat.nameKh || cat.nameEn) : cat.nameEn}
+                    </span>
 
                     {/* Visual Accents: Compact Numeric Badge on Right */}
-                    <span
-                      className={`ml-1 px-2 py-0.5 rounded-md text-xs font-bold transition-colors ${
-                        isSelected
-                          ? 'bg-black/10 dark:bg-white/20 text-primary-foreground'
-                          : 'bg-white border border-slate-200 text-slate-700 group-hover:border-slate-300'
-                      }`}
-                    >
+                    <span className={`ml-1 px-2 py-0.5 rounded-md text-xs font-bold transition-colors ${
+                      isSelected ? 'bg-black/15 text-primary-foreground font-black' : 'bg-white border border-slate-200 text-slate-700 group-hover:border-slate-300 shadow-2xs'
+                    }`}>
                       {count}
                     </span>
                   </button>

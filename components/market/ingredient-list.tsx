@@ -5,7 +5,7 @@ import { IngredientItem, OrderItem } from '@/types/market';
 import { useTranslation } from '@/lib/i18n';
 import { 
   LayoutGrid, Beef, Fish, Carrot, Soup, Wheat, GlassWater, Package, Utensils,
-  Egg, Droplets, CookingPot, Beer, Leaf, Store, ChevronRight, CheckCircle2
+  Egg, Droplets, CookingPot, Beer, Leaf, Store, ChevronRight, CheckCircle2, Plus
 } from 'lucide-react';
 
 interface IngredientListProps {
@@ -13,6 +13,8 @@ interface IngredientListProps {
   orderItems: Record<string, OrderItem>;
   onSelectIngredient: (item: IngredientItem) => void;
   selectedCategory?: string;
+  currency?: 'KHR' | 'USD';
+  onCurrencyChange?: (currency: 'KHR' | 'USD') => void;
 }
 
 export const renderIngredientIcon = (iconName: string, className = "w-5 h-5") => {
@@ -40,6 +42,8 @@ export function IngredientList({
   items,
   orderItems,
   onSelectIngredient,
+  currency = 'KHR',
+  onCurrencyChange,
 }: IngredientListProps) {
   const { t, language } = useTranslation();
 
@@ -59,28 +63,54 @@ export function IngredientList({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-      {/* Table Header - Digital Glossary Checklist */}
-      <div className="grid grid-cols-12 gap-3 bg-slate-50 px-4 sm:px-6 py-3 border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-500">
-        <div className="col-span-6 sm:col-span-5 flex items-center gap-2">
-          <span>{t('list.glossary')}</span>
+      {/* Table Header - Unified & Scannable */}
+      <div className="grid grid-cols-12 gap-3 bg-slate-50 px-4 sm:px-6 py-3 border-b border-slate-200 items-center">
+        <div className="col-span-6 sm:col-span-5 flex items-center">
+          <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.glossary')}</span>
         </div>
-        <div className="col-span-3 text-left hidden sm:block">
-          <span>{t('list.category')}</span>
+        <div className="col-span-3 text-left hidden sm:flex items-center">
+          <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.category')}</span>
         </div>
-        <div className="col-span-2 text-center hidden sm:block">
-          <span>{t('list.priceUnit')}</span>
+        <div className="col-span-2 text-center hidden sm:flex items-center justify-center gap-2">
+          <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.priceUnit')}</span>
+          {onCurrencyChange && (
+            <div className="inline-flex items-center bg-slate-200/90 p-0.5 rounded-lg border border-slate-300/70 shadow-inner">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onCurrencyChange('KHR'); }}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer ${
+                  currency === 'KHR'
+                    ? 'bg-white text-orange-600 shadow-2xs border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                ៛ KHR
+              </button>
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onCurrencyChange('USD'); }}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-black transition-all cursor-pointer ${
+                  currency === 'USD'
+                    ? 'bg-white text-blue-600 shadow-2xs border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                $ USD
+              </button>
+            </div>
+          )}
         </div>
-        <div className="col-span-6 sm:col-span-2 text-right">
-          <span>{t('list.status')}</span>
+        <div className="col-span-6 sm:col-span-2 text-right flex items-center justify-end">
+          <span className="font-extrabold text-slate-700 text-xs leading-tight uppercase tracking-wider">{t('list.status')}</span>
         </div>
       </div>
 
-      {/* Glossary Rows */}
+      {/* Item Rows */}
       <div className="divide-y divide-slate-100">
         {items.map((item) => {
           const inBasket = orderItems[item.id];
-          const mainName = language === 'kh' ? (item.nameKh || item.nameEn) : item.nameEn;
-          const subName = language === 'kh' ? item.nameEn : item.nameKh;
+          const mainEn = item.nameEn;
+          const secondaryKh = item.nameKh && item.nameKh !== item.nameEn ? item.nameKh : null;
 
           return (
             <div
@@ -89,7 +119,7 @@ export function IngredientList({
               className={`group grid grid-cols-12 gap-3 px-4 sm:px-6 py-3.5 items-center transition-all duration-200 cursor-pointer ${
                 inBasket
                   ? 'bg-primary/10 border-l-4 border-l-primary border-y border-y-primary/20 hover:bg-primary/20'
-                  : 'hover:bg-primary/10 border-l-4 border-l-transparent'
+                  : 'hover:bg-slate-50/80 border-l-4 border-l-transparent'
               }`}
             >
               {/* 1. Icon & Bilingual Name */}
@@ -98,7 +128,7 @@ export function IngredientList({
                   className={`p-2.5 rounded-xl flex-shrink-0 transition-colors shadow-2xs ${
                     inBasket
                       ? 'bg-primary text-primary-foreground font-bold shadow-xs'
-                      : 'bg-slate-100 text-slate-600 group-hover:bg-primary/30 group-hover:text-primary-foreground font-bold'
+                      : 'bg-slate-100 text-slate-600 group-hover:bg-primary/20 group-hover:text-slate-900 font-bold'
                   }`}
                 >
                   {renderIngredientIcon(item.iconName, "w-5 h-5")}
@@ -106,7 +136,7 @@ export function IngredientList({
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-slate-900 truncate">
-                      {mainName}
+                      {mainEn}
                     </span>
                     {inBasket && (
                       <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground shadow-2xs">
@@ -115,11 +145,6 @@ export function IngredientList({
                       </span>
                     )}
                   </div>
-                  {subName && (
-                    <span className="font-kantumruy text-xs text-slate-500 font-medium truncate mt-0.5">
-                      {subName}
-                    </span>
-                  )}
                 </div>
               </div>
 
@@ -133,36 +158,34 @@ export function IngredientList({
               {/* 3. Estimated Price & Default Unit (Desktop) */}
               <div className="col-span-2 hidden sm:flex flex-col items-center justify-center text-center">
                 <span className="font-black text-sm text-slate-800">
-                  ${item.defaultPrice.toFixed(2)}
+                  {currency === 'KHR' ? `${(item.defaultPrice * 4000).toLocaleString()} ៛` : `$${item.defaultPrice.toFixed(2)}`}
                 </span>
                 <span className="text-[11px] font-semibold text-slate-400 uppercase">
                   {t('list.per')} {item.defaultUnit}
                 </span>
               </div>
 
-              {/* 4. Action Arrow / In List Status */}
+              {/* 4. Action (+) or In List Status */}
               <div className="col-span-6 sm:col-span-2 flex items-center justify-end gap-2.5">
                 {inBasket ? (
                   <div className="flex items-center gap-2">
                     <span className="sm:hidden inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground">
                       <CheckCircle2 className="w-3 h-3" />
-                      <span>{t('list.inList')}</span>
+                      <span>{inBasket.quantity}</span>
                     </span>
-                    <span className="hidden md:inline-flex text-xs font-black text-slate-900 bg-primary/20 px-2.5 py-0.5 rounded-lg border border-primary/30">
+                    <span className="hidden md:inline-flex text-xs font-black text-slate-900 bg-primary/25 px-3 py-1 rounded-xl border border-primary/40 shadow-2xs">
                       {inBasket.quantity} {inBasket.unit}
                     </span>
-                    <div className="w-8 h-8 rounded-full bg-primary/25 text-slate-900 flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <ChevronRight className="w-4 h-4 stroke-[2.5]" />
+                    <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+                      <CheckCircle2 className="w-4 h-4 stroke-[3]" />
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-slate-900 transition-colors">
-                    <span className="text-xs font-bold hidden md:inline-block opacity-0 group-hover:opacity-100 transition-opacity">
-                      {t('list.select')}
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-primary hover:text-primary-foreground text-slate-700 font-bold text-xs transition-all border border-slate-200 shadow-2xs group-hover:border-primary/40">
+                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Add</span>
                     </span>
-                    <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 group-hover:bg-primary group-hover:text-primary-foreground flex items-center justify-center transition-all shadow-2xs">
-                      <ChevronRight className="w-4 h-4 stroke-[2.5]" />
-                    </div>
                   </div>
                 )}
               </div>

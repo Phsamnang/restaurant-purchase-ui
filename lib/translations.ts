@@ -30,9 +30,18 @@ export interface Dictionary {
     searchPlaceholder: string;
     itemsAvailable: string;
     clickTip: string;
+    modeLabel: string;
+    modeGlossary: string;
+    modeGlossarySub: string;
+    modeStuff: string;
+    modeStuffSub: string;
+    stuffTitle: string;
+    stuffSubtitle: string;
+    addCustomStuff: string;
   };
   list: {
     glossary: string;
+    itemNameKh: string;
     category: string;
     priceUnit: string;
     status: string;
@@ -49,7 +58,11 @@ export interface Dictionary {
     quickAdd: string;
     unit: string;
     price: string;
+    pricePerUnit: string;
     vendor: string;
+    supplier: string;
+    amountRequested: string;
+    paidTo: string;
     notes: string;
     notesPlaceholder: string;
     lineTotal: string;
@@ -147,13 +160,22 @@ export const translations: Record<Language, Dictionary> = {
       addCustomItem: "Add Custom Item",
       searchPlaceholder: "Search ingredient by English or Khmer name...",
       itemsAvailable: "items available",
-      clickTip: "💡 Click any ingredient to add it to your digital shopping list",
+      clickTip: "💡 Click any item to add it to your digital request list",
+      modeLabel: "What do you want to buy/request?",
+      modeGlossary: "Ingredient Glossary (ផ្សារព្រឹក)",
+      modeGlossarySub: "Fresh food, meat, vegetables, seafood & daily pantry items",
+      modeStuff: "Supplies, Glassware & Cash / Tip (សម្ភារៈ/ប្រាក់)",
+      modeStuffSub: "Glassware, tableware, tools, cleaning, petty cash & staff tip advance",
+      stuffTitle: "Supplies, Equipment & Cash Requisition",
+      stuffSubtitle: "Request glassware, kitchen tools, cleaning supplies, petty cash & staff tip advance",
+      addCustomStuff: "Add Custom Supply / Cash Request",
     },
     list: {
-      glossary: "Ingredient Glossary",
+      glossary: "Item Name",
+      itemNameKh: "ឈ្មោះមុខទំនិញ",
       category: "Category",
       priceUnit: "Est. Price / Unit",
-      status: "Action / Status",
+      status: "Add / Quantity",
       inList: "In List",
       select: "Select",
       per: "per",
@@ -167,7 +189,11 @@ export const translations: Record<Language, Dictionary> = {
       quickAdd: "Quick Add:",
       unit: "Unit",
       price: "Price ($)",
+      pricePerUnit: "Price Per Unit",
       vendor: "Preferred Vendor",
+      supplier: "Supplier",
+      amountRequested: "Amount Requested",
+      paidTo: "Paid To",
       notes: "Chef Notes",
       notesPlaceholder: "e.g., Please select large size, fresh morning delivery...",
       lineTotal: "Estimated Line Total",
@@ -263,13 +289,22 @@ export const translations: Record<Language, Dictionary> = {
       addCustomItem: "ថែមមុខទំនិញថ្មី",
       searchPlaceholder: "ស្វែងរកឈ្មោះទំនិញជាភាសាខ្មែរ ឬអង់គ្លេស...",
       itemsAvailable: "មុខទំនិញមាន",
-      clickTip: "💡 ចុចលើមុខទំនិញណាមួយដើម្បីបន្ថែមចូលបញ្ជីទិញផ្សាររបស់អ្នក",
+      clickTip: "💡 ចុចលើមុខទំនិញណាមួយដើម្បីបន្ថែមចូលបញ្ជីទិញ ឬសំណូមពររបស់អ្នក",
+      modeLabel: "តើអ្នកចង់ទិញ ឬស្នើសុំអ្វី?",
+      modeGlossary: "គ្រឿងផ្សំ / ផ្សារព្រឹក (Glossary)",
+      modeGlossarySub: "សាច់ បន្លែ ត្រី គ្រឿងសមុទ្រ និងគ្រឿងទេសប្រចាំថ្ងៃ",
+      modeStuff: "សម្ភារៈ កែវ និងប្រាក់ Tip (Stuff / Supplies)",
+      modeStuffSub: "កែវ ចាន សម្ភារៈសម្អាត ឧបករណ៍ផ្ទះបាយ ដកប្រាក់ Tip និងប្រាក់បម្រុង",
+      stuffTitle: "សំណូមពរសម្ភារៈ ឧបករណ៍ និងសាច់ប្រាក់",
+      stuffSubtitle: "ស្នើសុំកែវ ឧបករណ៍ផ្ទះបាយ សម្ភារៈសម្អាត ដកប្រាក់ Tip និងប្រាក់បម្រុង",
+      addCustomStuff: "ថែមសំណូមពរសម្ភារៈ / សាច់ប្រាក់",
     },
     list: {
-      glossary: "ឈ្មោះទំនិញ",
+      glossary: "ឈ្មោះមុខទំនិញ",
+      itemNameKh: "Item Name",
       category: "ប្រភេទ",
       priceUnit: "តម្លៃប៉ាន់ស្មាន / ខ្នាត",
-      status: "សកម្មភាព / ស្ថានភាព",
+      status: "បន្ថែម / ចំនួន",
       inList: "ក្នុងបញ្ជី",
       select: "ជ្រើសរើស",
       per: "ក្នុងមួយ",
@@ -283,7 +318,11 @@ export const translations: Record<Language, Dictionary> = {
       quickAdd: "បន្ថែមលឿន:",
       unit: "ខ្នាត",
       price: "តម្លៃ ($)",
+      pricePerUnit: "តម្លៃក្នុងមួយឯកតា",
       vendor: "ទីផ្សារទិញ",
+      supplier: "ក្រុមហ៊ុនផ្គត់ផ្គង់",
+      amountRequested: "ចំនួនទឹកប្រាក់ស្នើសុំ",
+      paidTo: "ទូទាត់ជូន",
       notes: "កំណត់សម្គាល់ចុងភៅ",
       notesPlaceholder: "ឧទាហរណ៍៖ សូមជ្រើសរើសទំហំធំ ស្រស់ល្អ...",
       lineTotal: "តម្លៃសរុបប៉ាន់ស្មាន",

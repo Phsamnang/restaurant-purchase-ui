@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { IngredientItem, OrderItem, MARKET_SUPPLIERS } from '@/types/market';
+import { IngredientItem, OrderItem, MARKET_SUPPLIERS, STUFF_SUPPLIERS } from '@/types/market';
 import { renderIngredientIcon } from './ingredient-list';
 import { useTranslation } from '@/lib/i18n';
 import { 
@@ -31,24 +31,65 @@ export function OrderModal({
   const [supplier, setSupplier] = useState<string>(MARKET_SUPPLIERS[0]);
   const [notes, setNotes] = useState<string>('');
 
+  const supplierList = useMemo(() => {
+    return ingredient?.requestType === 'stuff' ? STUFF_SUPPLIERS : MARKET_SUPPLIERS;
+  }, [ingredient]);
+
+  const allowedUnits = useMemo(() => {
+    if (ingredient?.allowedUnits && ingredient.allowedUnits.length > 0) {
+      return ingredient.allowedUnits;
+    }
+    if (ingredient?.requestType === 'stuff') {
+      return ['piece', 'set', 'box', 'pack', 'bottle', 'gallon', 'tank', 'USD'];
+    }
+    return ['kg', 'gram', 'piece', 'pack', 'bottle', 'can'];
+  }, [ingredient]);
+
+  const isCashRequest = useMemo(() => {
+    if (!ingredient) return false;
+    return ingredient.category === 'Petty Cash & Tip Advance' ||
+           ingredient.id.toLowerCase().includes('tip') ||
+           ingredient.id.toLowerCase().includes('cash') ||
+           ingredient.id.toLowerCase().includes('money') ||
+           ingredient.id.toLowerCase().includes('reimburse') ||
+           ingredient.nameEn.toLowerCase().includes('cash') ||
+           ingredient.nameEn.toLowerCase().includes('tip');
+  }, [ingredient]);
+
   // Sync state when modal opens or ingredient changes
   useEffect(() => {
     if (isOpen && ingredient) {
       if (initialOrderItem) {
-        setQuantity(initialOrderItem.quantity);
-        setUnit(initialOrderItem.unit);
-        setPricePerUnit(initialOrderItem.pricePerUnit);
-        setSupplier(initialOrderItem.supplier || MARKET_SUPPLIERS[0]);
-        setNotes(initialOrderItem.notes || '');
+        if (isCashRequest) {
+          setQuantity(1);
+          setUnit(initialOrderItem.unit === 'USD' ? 'USD' : 'KHR');
+          setPricePerUnit(initialOrderItem.totalCost || initialOrderItem.pricePerUnit || 0);
+          setSupplier(initialOrderItem.supplier || 'Staff Member / Beneficiary');
+          setNotes(initialOrderItem.notes || '');
+        } else {
+          setQuantity(initialOrderItem.quantity);
+          setUnit(initialOrderItem.unit);
+          setPricePerUnit(initialOrderItem.pricePerUnit);
+          setSupplier(initialOrderItem.supplier || supplierList[0]);
+          setNotes(initialOrderItem.notes || '');
+        }
       } else {
-        setQuantity(1);
-        setUnit(ingredient.defaultUnit || 'kg');
-        setPricePerUnit(ingredient.defaultPrice || 0);
-        setSupplier(MARKET_SUPPLIERS[0]);
-        setNotes('');
+        if (isCashRequest) {
+          setQuantity(1);
+          setUnit(ingredient.defaultUnit === 'USD' ? 'USD' : 'KHR');
+          setPricePerUnit(ingredient.defaultPrice || 0);
+          setSupplier('Staff Member / Beneficiary');
+          setNotes('');
+        } else {
+          setQuantity(1);
+          setUnit(ingredient.defaultUnit || (ingredient.requestType === 'stuff' ? 'piece' : 'kg'));
+          setPricePerUnit(ingredient.defaultPrice || 0);
+          setSupplier(supplierList[0]);
+          setNotes('');
+        }
       }
     }
-  }, [isOpen, ingredient, initialOrderItem]);
+  }, [isOpen, ingredient, initialOrderItem, supplierList, isCashRequest]);
 
   // Keyboard Shortcuts (Enter to Submit, Esc to Close)
   useEffect(() => {
@@ -68,8 +109,11 @@ export function OrderModal({
   }, [isOpen, quantity, unit, pricePerUnit, supplier, notes]);
 
   const totalCost = useMemo(() => {
+    if (isCashRequest) {
+      return Number(pricePerUnit.toFixed(2));
+    }
     return Number((quantity * pricePerUnit).toFixed(2));
-  }, [quantity, pricePerUnit]);
+  }, [quantity, pricePerUnit, isCashRequest]);
 
   if (!isOpen || !ingredient) return null;
 
@@ -84,7 +128,27 @@ export function OrderModal({
     setQuantity((prev) => Number((prev + addAmount).toFixed(2)));
   };
 
+  const handleQuickAmountAdd = (addAmount: number) => {
+    setPricePerUnit((prev) => Number((prev + addAmount).toFixed(2)));
+  };
+
   const handleSubmit = () => {
+    if (isCashRequest) {
+      if (pricePerUnit <= 0) return;
+      const newOrderItem: OrderItem = {
+        ingredient,
+        quantity: 1,
+        unit: unit === 'USD' ? 'USD' : 'KHR',
+        pricePerUnit: Number(pricePerUnit) || 0,
+        totalCost: Number(pricePerUnit) || 0,
+        supplier: supplier.trim() || 'Staff Member / Beneficiary',
+        notes: notes.trim(),
+      };
+      onSave(newOrderItem);
+      onClose();
+      return;
+    }
+
     if (quantity <= 0) return;
 
     const newOrderItem: OrderItem = {
@@ -112,16 +176,16 @@ export function OrderModal({
         className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
       >
         {/* Modal Header */}
-        <div className="bg-slate-900 text-white p-6 flex items-start justify-between gap-4 relative overflow-hidden">
+        <div className="p-6 flex items-start justify-between gap-4 relative overflow-hidden text-white bg-slate-900">
           <div className="absolute right-0 top-0 w-32 h-32 bg-primary/20 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none" />
           
           <div className="flex items-start gap-4 z-10 min-w-0">
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-primary shadow-inner flex-shrink-0">
+            <div className="p-3 rounded-2xl border shadow-inner flex-shrink-0 bg-white/10 text-primary border-white/10">
               {renderIngredientIcon(ingredient.iconName, "w-7 h-7")}
             </div>
             <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] uppercase font-black tracking-widest bg-primary text-primary-foreground px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] uppercase font-black tracking-widest px-2.5 py-0.5 rounded-full bg-primary text-primary-foreground">
                   {ingredient.category}
                 </span>
                 {isEditing && (
@@ -130,11 +194,11 @@ export function OrderModal({
                   </span>
                 )}
               </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white truncate">
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white line-clamp-2 leading-tight break-words">
                 {mainName}
               </h2>
               {subName && (
-                <p className="font-kantumruy text-sm font-light text-slate-300 truncate">
+                <p className="font-kantumruy text-sm font-light text-slate-300 line-clamp-2 leading-tight break-words">
                   {subName}
                 </p>
               )}
@@ -150,182 +214,276 @@ export function OrderModal({
           </button>
         </div>
 
-        {/* Modal Form Body (Scrollable) - Consistent Form Styles & Heights */}
+        {/* Modal Form Body (Scrollable) */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
-          {/* 1. QUANTITY SECTION (*) */}
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
-                {t('modal.quantity')} <span className="text-red-500">*</span>
-              </label>
-              <span className="text-[11px] font-semibold text-slate-400">{t('modal.stepTip')}</span>
-            </div>
-
-            {/* Stepper Control with Consistent h-12 Height and Slate-300 Border */}
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => handleStep(-1)}
-                className="w-12 h-12 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 flex items-center justify-center transition-all shadow-2xs active:scale-95 flex-shrink-0 cursor-pointer"
-                aria-label="Decrease quantity"
-              >
-                <Minus className="w-5 h-5 stroke-[3]" />
-              </button>
-
-              <div className="flex-1 relative">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0.1"
-                  step="any"
-                  value={quantity === 0 ? '' : quantity}
-                  onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
-                  className="w-full h-12 px-4 text-center text-xl font-black bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-900 shadow-2xs transition-all"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleStep(1)}
-                className="w-12 h-12 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 flex items-center justify-center transition-all shadow-2xs active:scale-95 flex-shrink-0 cursor-pointer"
-                aria-label="Increase quantity"
-              >
-                <Plus className="w-5 h-5 stroke-[3]" />
-              </button>
-            </div>
-
-            {/* Quick Actions Pills */}
-            <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-              <span className="text-xs font-bold text-slate-400 mr-1">{t('modal.quickAdd')}</span>
-              <button
-                type="button"
-                onClick={() => handleQuickAdd(1)}
-                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
-              >
-                +1 {unit}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAdd(5)}
-                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
-              >
-                +5 {unit}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAdd(10)}
-                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
-              >
-                +10 {unit}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickAdd(20)}
-                className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
-              >
-                +20 {unit}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* 2. UNIT DROPDOWN (*) */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
-                {t('modal.unit')} <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={unit}
-                onChange={(e) => setUnit(e.target.value)}
-                className="w-full h-12 px-3.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shadow-2xs"
-              >
-                {(ingredient.allowedUnits?.length ? ingredient.allowedUnits : ['kg', 'gram', 'piece', 'pack']).map((u) => (
-                  <option key={u} value={u} className="font-bold">
-                    {u.toUpperCase()} ({u})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 3. PURCHASE PRICE (*) */}
-            <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
-                {t('modal.price')} <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                  $
+          {isCashRequest ? (
+            /* =========================================================
+               SEPARATED CASH REQUEST FORM (Petty Cash, Tip Advance)
+               ========================================================= */
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* 1. AMOUNT REQUESTED (*) WITH KHR/USD TOGGLE */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
+                    {t('modal.amountRequested')} <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setUnit('USD')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        unit === 'USD' ? 'bg-white text-blue-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      $ USD
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUnit('KHR')}
+                      className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        unit === 'KHR' ? 'bg-white text-orange-600 shadow-2xs font-black' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      ៛ KHR
+                    </button>
+                  </div>
                 </div>
+
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xl">
+                    {unit === 'KHR' ? '៛' : '$'}
+                  </div>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="any"
+                    value={pricePerUnit === 0 ? '' : pricePerUnit}
+                    onChange={(e) => setPricePerUnit(parseFloat(e.target.value) || 0)}
+                    placeholder={unit === 'KHR' ? "0" : "0.00"}
+                    className="w-full h-14 pl-10 pr-4 bg-slate-50 border border-slate-300 rounded-xl font-black text-2xl text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-2xs"
+                  />
+                </div>
+
+                {/* Quick Add Presets (Appropriate round numbers for Cash) */}
+                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                  <span className="text-xs font-bold text-slate-400 mr-1">{t('modal.quickAdd')}</span>
+                  {unit === 'KHR' ? (
+                    <>
+                      <button type="button" onClick={() => handleQuickAmountAdd(5000)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+5,000 ៛</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(10000)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+10,000 ៛</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(20000)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+20,000 ៛</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(50000)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+50,000 ៛</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(100000)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+100,000 ៛</button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => handleQuickAmountAdd(10)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+$10</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(20)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+$20</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(50)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+$50</button>
+                      <button type="button" onClick={() => handleQuickAmountAdd(100)} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer">+$100</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. PAID TO (*) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                  <Store className="w-4 h-4 text-slate-400" />
+                  <span>{t('modal.paidTo')} <span className="text-red-500">*</span></span>
+                </label>
                 <input
-                  type="number"
-                  inputMode="decimal"
-                  min="0"
-                  step="0.01"
-                  value={pricePerUnit === 0 ? '' : pricePerUnit}
-                  onChange={(e) => setPricePerUnit(parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                  className="w-full h-12 pl-8 pr-3.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-2xs"
+                  type="text"
+                  value={supplier}
+                  onChange={(e) => setSupplier(e.target.value)}
+                  placeholder="e.g., Sokha - Kitchen Staff / Channary - Cashier"
+                  className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-2xs"
+                />
+              </div>
+
+              {/* 3. NOTES (Optional) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <span>{t('modal.notes')} <span className="text-slate-400 font-normal">({t('common.optional')})</span></span>
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={t('modal.notesPlaceholder')}
+                  rows={2}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none shadow-2xs"
                 />
               </div>
             </div>
-          </div>
+          ) : (
+            /* =========================================================
+               STANDARD GLOSSARY / SUPPLIES REQUISITION FORM (Physical Items)
+               ========================================================= */
+            <div className="space-y-6 animate-in fade-in duration-200">
+              {/* 1. QUANTITY SECTION (*) */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
+                    {t('modal.quantity')} <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-semibold text-slate-400">{t('modal.stepTip')}</span>
+                </div>
 
-          {/* Real-Time Total Calculation Box */}
-          <div className="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between gap-4 shadow-md">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary text-primary-foreground font-bold rounded-xl shadow-xs">
-                <Calculator className="w-5 h-5 stroke-[2.5]" />
+                {/* Stepper Control */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleStep(-1)}
+                    className="w-12 h-12 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 flex items-center justify-center transition-all shadow-2xs active:scale-95 flex-shrink-0 cursor-pointer"
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="w-5 h-5 stroke-[3]" />
+                  </button>
+
+                  <div className="flex-1 relative">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0.1"
+                      step="any"
+                      value={quantity === 0 ? '' : quantity}
+                      onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
+                      className="w-full h-12 px-4 text-center text-xl font-black bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 text-slate-900 shadow-2xs transition-all"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleStep(1)}
+                    className="w-12 h-12 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 flex items-center justify-center transition-all shadow-2xs active:scale-95 flex-shrink-0 cursor-pointer"
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="w-5 h-5 stroke-[3]" />
+                  </button>
+                </div>
+
+                {/* Quick Actions Pills */}
+                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                  <span className="text-xs font-bold text-slate-400 mr-1">{t('modal.quickAdd')}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAdd(1)}
+                    className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
+                  >
+                    +1 {unit}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAdd(5)}
+                    className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
+                  >
+                    +5 {unit}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAdd(10)}
+                    className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
+                  >
+                    +10 {unit}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleQuickAdd(20)}
+                    className="px-3 py-1 rounded-lg bg-slate-100 hover:bg-primary/20 hover:text-slate-900 text-slate-700 font-bold text-xs transition-colors border border-slate-200 active:scale-95 cursor-pointer"
+                  >
+                    +20 {unit}
+                  </button>
+                </div>
               </div>
-              <div>
-                <span className="text-xs font-bold text-slate-300 uppercase tracking-wide block">
-                  {t('modal.lineTotal')}
-                </span>
-                <span className="text-xs text-slate-400 font-medium">
-                  {quantity} {unit} × ${pricePerUnit.toFixed(2)}
-                </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 2. UNIT SELECTOR (*) */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
+                    {t('modal.unit')} <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {allowedUnits.map((u) => {
+                      const isSelected = unit === u;
+                      return (
+                        <button
+                          key={u}
+                          type="button"
+                          onClick={() => setUnit(u)}
+                          className={`px-3.5 py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-slate-900 text-white shadow-xs scale-105'
+                              : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200/80'
+                          }`}
+                        >
+                          {u}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. ESTIMATED PRICE PER UNIT ($ / KHR) */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wide text-slate-700">
+                    {t('modal.pricePerUnit')} ({unit === 'KHR' ? '៛ KHR' : '$ USD'}) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-black">
+                      {unit === 'KHR' ? '៛' : '$'}
+                    </div>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="any"
+                      value={pricePerUnit === 0 ? '' : pricePerUnit}
+                      onChange={(e) => setPricePerUnit(parseFloat(e.target.value) || 0)}
+                      placeholder="0.00"
+                      className="w-full h-12 pl-8 pr-4 bg-slate-50 border border-slate-300 rounded-xl font-black text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all shadow-2xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. PREFERRED SUPPLIER (*) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                  <Store className="w-4 h-4 text-slate-400" />
+                  <span>{t('modal.supplier')} <span className="text-red-500">*</span></span>
+                </label>
+                <select
+                  value={supplier}
+                  onChange={(e) => setSupplier(e.target.value)}
+                  className="w-full h-12 px-3.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shadow-2xs"
+                >
+                  {supplierList.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 5. NOTES (Optional) */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <span>{t('modal.notes')} <span className="text-slate-400 font-normal">({t('common.optional')})</span></span>
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder={t('modal.notesPlaceholder')}
+                  rows={2}
+                  className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none shadow-2xs"
+                />
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-2xl sm:text-3xl font-black text-primary bg-white/10 px-3.5 py-1 rounded-xl border border-white/10">
-                ${totalCost.toFixed(2)}
-              </span>
-            </div>
-          </div>
-
-          {/* 4. SUPPLIER (Optional) */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
-              <Store className="w-4 h-4 text-slate-400" />
-              <span>{t('modal.vendor')} <span className="text-slate-400 font-normal">({t('common.optional')})</span></span>
-            </label>
-            <select
-              value={supplier}
-              onChange={(e) => setSupplier(e.target.value)}
-              className="w-full h-12 px-3.5 bg-slate-50 border border-slate-300 rounded-xl font-bold text-sm text-slate-900 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shadow-2xs"
-            >
-              {MARKET_SUPPLIERS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 5. NOTES (Optional) */}
-          <div className="space-y-2">
-            <label className="block text-xs font-bold uppercase tracking-wide text-slate-700 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-slate-400" />
-              <span>{t('modal.notes')} <span className="text-slate-400 font-normal">({t('common.optional')})</span></span>
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={t('modal.notesPlaceholder')}
-              rows={2}
-              className="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none shadow-2xs"
-            />
-          </div>
+          )}
         </div>
 
-        {/* Modal Footer Buttons - Prevent Wrapping with whitespace-nowrap */}
+        {/* Modal Footer Buttons */}
         <div className="bg-slate-50 p-6 border-t border-slate-200 flex items-center justify-end gap-3">
           <button
             type="button"
@@ -337,11 +495,13 @@ export function OrderModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={quantity <= 0}
-            className="whitespace-nowrap flex-1 sm:flex-none px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold shadow-sm hover:bg-primary-hover hover:text-primary active:bg-primary-active active:text-white transition-all text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            disabled={isCashRequest ? (pricePerUnit <= 0) : (quantity <= 0)}
+            className="whitespace-nowrap flex-1 sm:flex-none px-8 py-3 rounded-xl font-bold shadow-sm transition-all text-sm sm:text-base flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none cursor-pointer bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active"
           >
             <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
-            <span>{isEditing ? t('modal.updateList') : t('modal.addToList')}</span>
+            <span>
+              {isEditing ? t('modal.updateList') : t('modal.addToList')}
+            </span>
           </button>
         </div>
       </div>

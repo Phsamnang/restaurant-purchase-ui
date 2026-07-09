@@ -13,6 +13,7 @@ export interface IngredientItem {
   isCustom?: boolean;
   name?: string; // Legacy alias for nameEn + nameKh
   unit?: string; // Legacy alias for defaultUnit
+  requestType?: 'glossary' | 'stuff';
 }
 
 export interface OrderItem {
@@ -42,6 +43,14 @@ export const MARKET_CATEGORIES: CategoryItem[] = [
   { id: 'Beverages & Ice', nameEn: 'Beverages & Ice', nameKh: 'ភេសជ្ជៈ និងទឹកកក', iconName: 'GlassWater' },
 ];
 
+export const STUFF_CATEGORIES: CategoryItem[] = [
+  { id: 'all', nameEn: 'All Supplies & Cash', nameKh: 'សម្ភារៈ និងសាច់ប្រាក់ទាំងអស់', iconName: 'LayoutGrid' },
+  { id: 'Glassware & Tableware', nameEn: 'Glassware & Tableware', nameKh: 'កែវ និងចានស្លាបព្រា', iconName: 'GlassWater' },
+  { id: 'Petty Cash & Tip Advance', nameEn: 'Petty Cash & Tip Advance', nameKh: 'សាច់ប្រាក់ និងប្រាក់រង្វាន់ Tip', iconName: 'DollarSign' },
+  { id: 'Kitchen Equipment & Tools', nameEn: 'Kitchen Equipment & Tools', nameKh: 'ឧបករណ៍ផ្ទះបាយ', iconName: 'Wrench' },
+  { id: 'Cleaning & Sanitation', nameEn: 'Cleaning & Sanitation', nameKh: 'សម្ភារៈអនាម័យ និងសម្អាត', iconName: 'Sparkles' },
+];
+
 export const MARKET_SUPPLIERS = [
   'Morning Wet Market - Vendor A (ផ្សារព្រឹក)',
   'Orussey Wholesale Market (ផ្សារអូរឫស្សី)',
@@ -49,6 +58,14 @@ export const MARKET_SUPPLIERS = [
   'Super Duper Direct (ស៊ុបភើរឌូបភើរ)',
   'Local Farm Direct (កសិដ្ឋានក្នុងស្រុក)',
   'Seafood Direct Sihanoukville (គ្រឿងសមុទ្រកំពង់សោម)',
+];
+
+export const STUFF_SUPPLIERS = [
+  'Internal Cash / Tip Payout (បេឡា / ដកប្រាក់ Tip)',
+  'Orussey Restaurant Supply Store (ហាងលក់សម្ភារៈ អូរឫស្សី)',
+  'Makro Commercial Equipment (ម៉ាក្រូ សម្ភារៈ)',
+  'General Maintenance & Hardware Store (សម្ភារៈជួសជុល និងជាង)',
+  'Supermarket Hygiene & Cleaning Direct (សម្ភារៈអនាម័យ)',
 ];
 
 export const ALL_AVAILABLE_UNITS = [
@@ -60,6 +77,19 @@ export const ALL_AVAILABLE_UNITS = [
   'pack',
   'box',
   'bag'
+];
+
+export const ALL_STUFF_UNITS = [
+  'piece',
+  'set',
+  'USD',
+  'KHR',
+  'box',
+  'pack',
+  'bottle',
+  'gallon',
+  'tank',
+  'role'
 ];
 
 export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
@@ -398,5 +428,225 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
     allowedUnits: ['bag', 'kg', 'box'],
     defaultPrice: 2.00,
     lowStockThreshold: 3,
+  },
+];
+
+export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
+  // Glassware & Tableware
+  {
+    id: 'wine-glass-red',
+    nameEn: 'Red Wine Glass 450ml',
+    nameKh: 'កែវស្រាក្រហមប្រណិត',
+    category: 'Glassware & Tableware',
+    iconName: 'GlassWater',
+    currentStock: 24,
+    parStock: 48,
+    defaultUnit: 'piece',
+    allowedUnits: ['piece', 'box', 'set'],
+    defaultPrice: 4.50,
+    lowStockThreshold: 12,
+    requestType: 'stuff',
+  },
+  {
+    id: 'highball-glass',
+    nameEn: 'Highball Drinking Glass 350ml',
+    nameKh: 'កែវទឹកក្រឡុក / ទឹកសុទ្ធ',
+    category: 'Glassware & Tableware',
+    iconName: 'GlassWater',
+    currentStock: 30,
+    parStock: 60,
+    defaultUnit: 'piece',
+    allowedUnits: ['piece', 'box', 'set'],
+    defaultPrice: 1.80,
+    lowStockThreshold: 15,
+    requestType: 'stuff',
+  },
+  {
+    id: 'beer-mug-500ml',
+    nameEn: 'Chilled Beer Mug 500ml',
+    nameKh: 'កែវស្រាបៀរក្រាស់',
+    category: 'Glassware & Tableware',
+    iconName: 'GlassWater',
+    currentStock: 18,
+    parStock: 40,
+    defaultUnit: 'piece',
+    allowedUnits: ['piece', 'box'],
+    defaultPrice: 2.50,
+    lowStockThreshold: 10,
+    requestType: 'stuff',
+  },
+  {
+    id: 'ceramic-plate-main',
+    nameEn: 'Ceramic Main Course Plate 28cm',
+    nameKh: 'ចានបាយសេរ៉ាមិចធំ',
+    category: 'Glassware & Tableware',
+    iconName: 'Package',
+    currentStock: 20,
+    parStock: 50,
+    defaultUnit: 'piece',
+    allowedUnits: ['piece', 'box', 'set'],
+    defaultPrice: 3.80,
+    lowStockThreshold: 12,
+    requestType: 'stuff',
+  },
+  {
+    id: 'cutlery-set-stainless',
+    nameEn: 'Stainless Steel Fork & Spoon Set',
+    nameKh: 'ឈុតស្លាបព្រា និងសមប្រណិត',
+    category: 'Glassware & Tableware',
+    iconName: 'Utensils',
+    currentStock: 25,
+    parStock: 60,
+    defaultUnit: 'set',
+    allowedUnits: ['set', 'box', 'piece'],
+    defaultPrice: 2.20,
+    lowStockThreshold: 15,
+    requestType: 'stuff',
+  },
+
+  // Petty Cash & Tip Advance
+  {
+    id: 'tip-payout-advance',
+    nameEn: 'Staff Tip Advance Payout',
+    nameKh: 'ដកប្រាក់រង្វាន់ Tip មុនកាលកំណត់',
+    category: 'Petty Cash & Tip Advance',
+    iconName: 'DollarSign',
+    currentStock: 1000,
+    parStock: 2000,
+    defaultUnit: 'USD',
+    allowedUnits: ['USD', 'KHR', 'piece'],
+    defaultPrice: 50.00,
+    lowStockThreshold: 100,
+    requestType: 'stuff',
+  },
+  {
+    id: 'petty-cash-emergency',
+    nameEn: 'Petty Cash - Urgent Operational Expense',
+    nameKh: 'សាច់ប្រាក់បម្រុងបន្ទាន់ / ជួសជុល',
+    category: 'Petty Cash & Tip Advance',
+    iconName: 'DollarSign',
+    currentStock: 500,
+    parStock: 1000,
+    defaultUnit: 'USD',
+    allowedUnits: ['USD', 'KHR'],
+    defaultPrice: 30.00,
+    lowStockThreshold: 100,
+    requestType: 'stuff',
+  },
+  {
+    id: 'register-change-coins',
+    nameEn: 'Small Change / Coins for Cashier Register',
+    nameKh: 'ប្រាក់អាប់ / ប្រាក់រាយសម្រាប់បេឡា',
+    category: 'Petty Cash & Tip Advance',
+    iconName: 'DollarSign',
+    currentStock: 200,
+    parStock: 500,
+    defaultUnit: 'pack',
+    allowedUnits: ['pack', 'USD'],
+    defaultPrice: 100.00,
+    lowStockThreshold: 50,
+    requestType: 'stuff',
+  },
+  {
+    id: 'gas-tank-refill',
+    nameEn: 'Cooking Gas Tank Refill 15kg',
+    nameKh: 'បញ្ចូលហ្គាសចម្អិនអាហារ ១៥គីឡូ',
+    category: 'Petty Cash & Tip Advance',
+    iconName: 'CookingPot',
+    currentStock: 2,
+    parStock: 6,
+    defaultUnit: 'tank',
+    allowedUnits: ['tank', 'piece'],
+    defaultPrice: 18.00,
+    lowStockThreshold: 2,
+    requestType: 'stuff',
+  },
+
+  // Kitchen Equipment & Tools
+  {
+    id: 'commercial-blender',
+    nameEn: 'Heavy Duty Commercial Bar Blender',
+    nameKh: 'ម៉ាស៊ីនក្រឡុកកម្លាំងខ្លាំងប្រចាំបារ',
+    category: 'Kitchen Equipment & Tools',
+    iconName: 'Wrench',
+    currentStock: 1,
+    parStock: 3,
+    defaultUnit: 'set',
+    allowedUnits: ['set', 'piece'],
+    defaultPrice: 85.00,
+    lowStockThreshold: 1,
+    requestType: 'stuff',
+  },
+  {
+    id: 'chef-knife-sharpened',
+    nameEn: 'Professional Chef Knife 8"',
+    nameKh: 'កាំបិតចុងភៅប្រណិត ៨អ៊ីញ',
+    category: 'Kitchen Equipment & Tools',
+    iconName: 'Utensils',
+    currentStock: 3,
+    parStock: 8,
+    defaultUnit: 'piece',
+    allowedUnits: ['piece', 'set'],
+    defaultPrice: 25.00,
+    lowStockThreshold: 2,
+    requestType: 'stuff',
+  },
+  {
+    id: 'cutting-board-color',
+    nameEn: 'Color-Coded Hygienic Cutting Board Set',
+    nameKh: 'ជ្រុះហាប់ពណ៌អនាម័យ',
+    category: 'Kitchen Equipment & Tools',
+    iconName: 'LayoutGrid',
+    currentStock: 4,
+    parStock: 10,
+    defaultUnit: 'set',
+    allowedUnits: ['set', 'piece'],
+    defaultPrice: 15.00,
+    lowStockThreshold: 3,
+    requestType: 'stuff',
+  },
+
+  // Cleaning & Sanitation
+  {
+    id: 'dishwashing-liquid-5l',
+    nameEn: 'Industrial Dishwashing Liquid 5L',
+    nameKh: 'សាប៊ូលាងចានធុងធំ ៥លីត្រ',
+    category: 'Cleaning & Sanitation',
+    iconName: 'Sparkles',
+    currentStock: 4,
+    parStock: 12,
+    defaultUnit: 'gallon',
+    allowedUnits: ['gallon', 'bottle', 'box'],
+    defaultPrice: 8.50,
+    lowStockThreshold: 3,
+    requestType: 'stuff',
+  },
+  {
+    id: 'heavy-duty-trash-bags',
+    nameEn: 'Heavy Duty Black Trash Bags XXL',
+    nameKh: 'ថង់សម្រាមក្រាស់ធំ',
+    category: 'Cleaning & Sanitation',
+    iconName: 'Package',
+    currentStock: 8,
+    parStock: 20,
+    defaultUnit: 'pack',
+    allowedUnits: ['pack', 'box', 'role'],
+    defaultPrice: 4.20,
+    lowStockThreshold: 5,
+    requestType: 'stuff',
+  },
+  {
+    id: 'microfiber-towels',
+    nameEn: 'Microfiber Kitchen Cleaning Towels',
+    nameKh: 'កន្សែងជូតសម្អាតផ្ទះបាយ',
+    category: 'Cleaning & Sanitation',
+    iconName: 'Sparkles',
+    currentStock: 12,
+    parStock: 30,
+    defaultUnit: 'pack',
+    allowedUnits: ['pack', 'piece', 'box'],
+    defaultPrice: 6.00,
+    lowStockThreshold: 6,
+    requestType: 'stuff',
   },
 ];

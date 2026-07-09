@@ -27,17 +27,34 @@ export interface OrderRequest {
   createdBy: string;
   approvedBy?: string;
   notes?: string;
+  requestType?: 'glossary' | 'stuff' | 'mixed';
 }
 
 const STORAGE_KEY = 'restaurant_orders_v2_erp';
 
 const DEFAULT_ORDERS: OrderRequest[] = [
   {
+    id: 'ORD-2026-005',
+    status: 'pending',
+    date: '2026-07-09',
+    total: '$158.00',
+    currency: 'USD',
+    requestType: 'stuff',
+    createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
+    notes: 'Urgent Glassware replacement for VIP room & weekly Staff Tip Advance payout request',
+    items: [
+      { id: 'wine-glass-red', nameEn: 'Red Wine Glass 450ml', nameKh: 'កែវស្រាក្រហមប្រណិត', unit: 'piece', ordered: 12, icon: 'GlassWater', category: 'Glassware & Tableware', estimatedPrice: 4.50, supplierNotes: 'Fragile - handle with care, crystal clear stem', packingStatus: 'pending' },
+      { id: 'highball-glass', nameEn: 'Highball Drinking Glass 350ml', nameKh: 'កែវទឹកក្រឡុក / ទឹកសុទ្ធ', unit: 'piece', ordered: 30, icon: 'GlassWater', category: 'Glassware & Tableware', estimatedPrice: 1.80, supplierNotes: 'Commercial thick glass', packingStatus: 'pending' },
+      { id: 'tip-payout-advance', nameEn: 'Staff Tip Advance Payout', nameKh: 'ដកប្រាក់រង្វាន់ Tip មុនកាលកំណត់', unit: 'USD', ordered: 1, icon: 'DollarSign', category: 'Petty Cash & Tip Advance', estimatedPrice: 50.00, supplierNotes: 'Ask for getting money tip advance for kitchen closing shift', packingStatus: 'pending' },
+    ],
+  },
+  {
     id: 'ORD-2026-001',
     status: 'pending',
     date: '2026-07-06',
     total: '738,000 ៛',
     currency: 'KHR',
+    requestType: 'glossary',
     createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
     items: [
       { id: 'pork-belly', nameEn: 'Pork Belly', nameKh: 'សាច់ជ្រូកបីជាន់', unit: 'kg', ordered: 5, icon: 'Beef', category: 'Meat & Poultry', estimatedPrice: 7.50, supplierNotes: 'Fresh morning cut, 50/50 fat ratio', packingStatus: 'pending' },
@@ -52,6 +69,7 @@ const DEFAULT_ORDERS: OrderRequest[] = [
     date: '2026-07-05',
     total: '$245.00',
     currency: 'USD',
+    requestType: 'glossary',
     createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
     approvedBy: 'Manager Dara (អ្នកគ្រប់គ្រង តារា)',
     items: [
@@ -67,6 +85,7 @@ const DEFAULT_ORDERS: OrderRequest[] = [
     date: '2026-07-04',
     total: '451,000 ៛',
     currency: 'KHR',
+    requestType: 'glossary',
     createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
     approvedBy: 'Manager Dara (អ្នកគ្រប់គ្រង តារា)',
     items: [
@@ -81,6 +100,7 @@ const DEFAULT_ORDERS: OrderRequest[] = [
     date: '2026-07-03',
     total: '$320.00',
     currency: 'USD',
+    requestType: 'glossary',
     createdBy: 'Chef Sophea (ចុងភៅ សុភា)',
     approvedBy: 'Manager Dara (អ្នកគ្រប់គ្រង តារា)',
     items: [
