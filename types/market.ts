@@ -1,7 +1,6 @@
 export interface IngredientItem {
   id: string;
-  nameEn: string;
-  nameKh: string;
+  name: string;
   category: string;
   iconName: string;
   currentStock: number;
@@ -11,7 +10,6 @@ export interface IngredientItem {
   defaultPrice: number; // USD per default unit
   lowStockThreshold?: number;
   isCustom?: boolean;
-  name?: string; // Legacy alias for nameEn + nameKh
   unit?: string; // Legacy alias for defaultUnit
   requestType?: 'glossary' | 'stuff';
 }
@@ -29,27 +27,26 @@ export interface OrderItem {
 
 export interface CategoryItem {
   id: string;
-  nameEn: string;
-  nameKh: string;
+  name: string;
   iconName: string;
 }
 
 export const MARKET_CATEGORIES: CategoryItem[] = [
-  { id: 'all', nameEn: 'All Ingredients', nameKh: 'មុខទំនិញទាំងអស់', iconName: 'LayoutGrid' },
-  { id: 'Meat & Poultry', nameEn: 'Meat & Poultry', nameKh: 'សាច់ និងបក្សី', iconName: 'Beef' },
-  { id: 'Seafood & Fish', nameEn: 'Seafood & Fish', nameKh: 'គ្រឿងសមុទ្រ និងត្រី', iconName: 'Fish' },
-  { id: 'Vegetables & Herbs', nameEn: 'Vegetables & Herbs', nameKh: 'បន្លែ និងគ្រឿងទេស', iconName: 'Carrot' },
-  { id: 'Sauces & Pantry', nameEn: 'Sauces & Pantry', nameKh: 'គ្រឿងផ្សំ និងទឹកជ្រលក់', iconName: 'Soup' },
-  { id: 'Rice & Noodles', nameEn: 'Rice & Noodles', nameKh: 'អង្ករ និងមី/គុយទាវ', iconName: 'Wheat' },
-  { id: 'Beverages & Ice', nameEn: 'Beverages & Ice', nameKh: 'ភេសជ្ជៈ និងទឹកកក', iconName: 'GlassWater' },
+  { id: 'all', name: 'All Ingredients', iconName: 'LayoutGrid' },
+  { id: 'Meat & Poultry', name: 'Meat & Poultry', iconName: 'Beef' },
+  { id: 'Seafood & Fish', name: 'Seafood & Fish', iconName: 'Fish' },
+  { id: 'Vegetables & Herbs', name: 'Vegetables & Herbs', iconName: 'Carrot' },
+  { id: 'Sauces & Pantry', name: 'Sauces & Pantry', iconName: 'Soup' },
+  { id: 'Rice & Noodles', name: 'Rice & Noodles', iconName: 'Wheat' },
+  { id: 'Beverages & Ice', name: 'Beverages & Ice', iconName: 'GlassWater' },
 ];
 
 export const STUFF_CATEGORIES: CategoryItem[] = [
-  { id: 'all', nameEn: 'All Supplies & Cash', nameKh: 'សម្ភារៈ និងសាច់ប្រាក់ទាំងអស់', iconName: 'LayoutGrid' },
-  { id: 'Glassware & Tableware', nameEn: 'Glassware & Tableware', nameKh: 'កែវ និងចានស្លាបព្រា', iconName: 'GlassWater' },
-  { id: 'Petty Cash & Tip Advance', nameEn: 'Petty Cash & Tip Advance', nameKh: 'សាច់ប្រាក់ និងប្រាក់រង្វាន់ Tip', iconName: 'DollarSign' },
-  { id: 'Kitchen Equipment & Tools', nameEn: 'Kitchen Equipment & Tools', nameKh: 'ឧបករណ៍ផ្ទះបាយ', iconName: 'Wrench' },
-  { id: 'Cleaning & Sanitation', nameEn: 'Cleaning & Sanitation', nameKh: 'សម្ភារៈអនាម័យ និងសម្អាត', iconName: 'Sparkles' },
+  { id: 'all', name: 'All Supplies & Cash', iconName: 'LayoutGrid' },
+  { id: 'Glassware & Tableware', name: 'Glassware & Tableware', iconName: 'GlassWater' },
+  { id: 'Petty Cash & Tip Advance', name: 'Petty Cash & Tip Advance', iconName: 'DollarSign' },
+  { id: 'Kitchen Equipment & Tools', name: 'Kitchen Equipment & Tools', iconName: 'Wrench' },
+  { id: 'Cleaning & Sanitation', name: 'Cleaning & Sanitation', iconName: 'Sparkles' },
 ];
 
 export const MARKET_SUPPLIERS = [
@@ -97,8 +94,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   // Meat & Poultry
   {
     id: 'pork-belly',
-    nameEn: 'Pork Belly',
-    nameKh: 'សាច់ជ្រូកបីជាន់',
+    name: 'Pork Belly',
     category: 'Meat & Poultry',
     iconName: 'Beef',
     currentStock: 2,
@@ -110,8 +106,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'ground-pork',
-    nameEn: 'Ground Pork',
-    nameKh: 'សាច់ជ្រូកចិញ្ច្រាំ',
+    name: 'Ground Pork',
     category: 'Meat & Poultry',
     iconName: 'Beef',
     currentStock: 5,
@@ -123,8 +118,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'chicken-breast',
-    nameEn: 'Chicken Breast',
-    nameKh: 'ទ្រូងមាន់ស្រស់',
+    name: 'Chicken Breast',
     category: 'Meat & Poultry',
     iconName: 'Utensils',
     currentStock: 12,
@@ -136,8 +130,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'whole-chicken',
-    nameEn: 'Whole Chicken',
-    nameKh: 'មាន់មូលស្រស់',
+    name: 'Whole Chicken',
     category: 'Meat & Poultry',
     iconName: 'Egg',
     currentStock: 3,
@@ -149,8 +142,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'beef-tenderloin',
-    nameEn: 'Beef Tenderloin',
-    nameKh: 'សាច់គោពិសេស',
+    name: 'Beef Tenderloin',
     category: 'Meat & Poultry',
     iconName: 'Beef',
     currentStock: 1.5,
@@ -162,8 +154,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'fresh-duck',
-    nameEn: 'Fresh Duck',
-    nameKh: 'ទាស្រស់',
+    name: 'Fresh Duck',
     category: 'Meat & Poultry',
     iconName: 'Utensils',
     currentStock: 2,
@@ -177,8 +168,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   // Seafood & Fish
   {
     id: 'river-fish',
-    nameEn: 'River Fish',
-    nameKh: 'ត្រីរៀល / ត្រីទន្លេ',
+    name: 'River Fish',
     category: 'Seafood & Fish',
     iconName: 'Fish',
     currentStock: 3,
@@ -190,8 +180,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'tiger-prawns',
-    nameEn: 'Tiger Prawns / Shrimp',
-    nameKh: 'បង្គាខ្លាស្រស់',
+    name: 'Tiger Prawns / Shrimp',
     category: 'Seafood & Fish',
     iconName: 'Fish',
     currentStock: 2,
@@ -203,8 +192,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'squid-fresh',
-    nameEn: 'Fresh Squid',
-    nameKh: 'មឹកស្រស់',
+    name: 'Fresh Squid',
     category: 'Seafood & Fish',
     iconName: 'Fish',
     currentStock: 6,
@@ -216,8 +204,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'mud-crab',
-    nameEn: 'Fresh Mud Crab',
-    nameKh: 'ក្តាមថ្មស្រស់',
+    name: 'Fresh Mud Crab',
     category: 'Seafood & Fish',
     iconName: 'Fish',
     currentStock: 4,
@@ -231,8 +218,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   // Vegetables & Herbs
   {
     id: 'lemongrass',
-    nameEn: 'Lemongrass',
-    nameKh: 'ស្លឹកគ្រៃស្រស់',
+    name: 'Lemongrass',
     category: 'Vegetables & Herbs',
     iconName: 'Leaf',
     currentStock: 4,
@@ -244,8 +230,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'garlic-bulbs',
-    nameEn: 'Garlic Bulbs',
-    nameKh: 'ខ្ទឹមស',
+    name: 'Garlic Bulbs',
     category: 'Vegetables & Herbs',
     iconName: 'Carrot',
     currentStock: 3,
@@ -257,8 +242,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'red-shallots',
-    nameEn: 'Red Shallots',
-    nameKh: 'ខ្ទឹមក្រហម',
+    name: 'Red Shallots',
     category: 'Vegetables & Herbs',
     iconName: 'Carrot',
     currentStock: 5,
@@ -270,8 +254,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'kaffir-lime-leaves',
-    nameEn: 'Kaffir Lime Leaves',
-    nameKh: 'ស្លឹកក្រូចសើច',
+    name: 'Kaffir Lime Leaves',
     category: 'Vegetables & Herbs',
     iconName: 'Leaf',
     currentStock: 2,
@@ -283,8 +266,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'morning-glory',
-    nameEn: 'Morning Glory',
-    nameKh: 'ត្រកួនស្រស់',
+    name: 'Morning Glory',
     category: 'Vegetables & Herbs',
     iconName: 'Leaf',
     currentStock: 10,
@@ -296,8 +278,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'fresh-lime',
-    nameEn: 'Fresh Lime',
-    nameKh: 'ក្រូចឆ្មា',
+    name: 'Fresh Lime',
     category: 'Vegetables & Herbs',
     iconName: 'Carrot',
     currentStock: 3,
@@ -311,8 +292,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   // Sauces & Pantry
   {
     id: 'fish-sauce-premium',
-    nameEn: 'Premium Fish Sauce',
-    nameKh: 'ទឹកត្រីពិសេស',
+    name: 'Premium Fish Sauce',
     category: 'Sauces & Pantry',
     iconName: 'Soup',
     currentStock: 6,
@@ -324,8 +304,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'oyster-sauce',
-    nameEn: 'Oyster Sauce',
-    nameKh: 'ប្រេងខ្យង',
+    name: 'Oyster Sauce',
     category: 'Sauces & Pantry',
     iconName: 'Soup',
     currentStock: 4,
@@ -337,8 +316,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'palm-sugar',
-    nameEn: 'Palm Sugar',
-    nameKh: 'ស្ករត្នោតធម្មជាតិ',
+    name: 'Palm Sugar',
     category: 'Sauces & Pantry',
     iconName: 'CookingPot',
     currentStock: 5,
@@ -350,8 +328,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'coconut-milk-can',
-    nameEn: 'Coconut Milk',
-    nameKh: 'ខ្ទិះដូងកំប៉ុង',
+    name: 'Coconut Milk',
     category: 'Sauces & Pantry',
     iconName: 'Package',
     currentStock: 10,
@@ -365,8 +342,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   // Rice & Noodles
   {
     id: 'jasmine-rice-25kg',
-    nameEn: 'Jasmine Rice (25kg)',
-    nameKh: 'អង្ករម្លិះលេខ១ (២៥គីឡូ)',
+    name: 'Jasmine Rice (25kg)',
     category: 'Rice & Noodles',
     iconName: 'Wheat',
     currentStock: 1,
@@ -378,8 +354,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'rice-noodles-kuyteav',
-    nameEn: 'Fresh Rice Noodles',
-    nameKh: 'គុយទាវស្រស់',
+    name: 'Fresh Rice Noodles',
     category: 'Rice & Noodles',
     iconName: 'Wheat',
     currentStock: 8,
@@ -391,8 +366,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'egg-noodles-yellow',
-    nameEn: 'Yellow Egg Noodles',
-    nameKh: 'មីលឿងពិសេស',
+    name: 'Yellow Egg Noodles',
     category: 'Rice & Noodles',
     iconName: 'Package',
     currentStock: 15,
@@ -406,8 +380,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   // Beverages & Ice
   {
     id: 'drinking-water-case',
-    nameEn: 'Drinking Water Case',
-    nameKh: 'ទឹកបរិសុទ្ធកេស',
+    name: 'Drinking Water Case',
     category: 'Beverages & Ice',
     iconName: 'Droplets',
     currentStock: 5,
@@ -419,8 +392,7 @@ export const DEFAULT_MARKET_CATALOG: IngredientItem[] = [
   },
   {
     id: 'crushed-ice-sack',
-    nameEn: 'Crushed Hygienic Ice',
-    nameKh: 'ទឹកកកអនាម័យ',
+    name: 'Crushed Hygienic Ice',
     category: 'Beverages & Ice',
     iconName: 'GlassWater',
     currentStock: 2,
@@ -436,8 +408,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   // Glassware & Tableware
   {
     id: 'wine-glass-red',
-    nameEn: 'Red Wine Glass 450ml',
-    nameKh: 'កែវស្រាក្រហមប្រណិត',
+    name: 'Red Wine Glass 450ml',
     category: 'Glassware & Tableware',
     iconName: 'GlassWater',
     currentStock: 24,
@@ -450,8 +421,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'highball-glass',
-    nameEn: 'Highball Drinking Glass 350ml',
-    nameKh: 'កែវទឹកក្រឡុក / ទឹកសុទ្ធ',
+    name: 'Highball Drinking Glass 350ml',
     category: 'Glassware & Tableware',
     iconName: 'GlassWater',
     currentStock: 30,
@@ -464,8 +434,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'beer-mug-500ml',
-    nameEn: 'Chilled Beer Mug 500ml',
-    nameKh: 'កែវស្រាបៀរក្រាស់',
+    name: 'Chilled Beer Mug 500ml',
     category: 'Glassware & Tableware',
     iconName: 'GlassWater',
     currentStock: 18,
@@ -478,8 +447,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'ceramic-plate-main',
-    nameEn: 'Ceramic Main Course Plate 28cm',
-    nameKh: 'ចានបាយសេរ៉ាមិចធំ',
+    name: 'Ceramic Main Course Plate 28cm',
     category: 'Glassware & Tableware',
     iconName: 'Package',
     currentStock: 20,
@@ -492,8 +460,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'cutlery-set-stainless',
-    nameEn: 'Stainless Steel Fork & Spoon Set',
-    nameKh: 'ឈុតស្លាបព្រា និងសមប្រណិត',
+    name: 'Stainless Steel Fork & Spoon Set',
     category: 'Glassware & Tableware',
     iconName: 'Utensils',
     currentStock: 25,
@@ -508,8 +475,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   // Petty Cash & Tip Advance
   {
     id: 'tip-payout-advance',
-    nameEn: 'Staff Tip Advance Payout',
-    nameKh: 'ដកប្រាក់រង្វាន់ Tip មុនកាលកំណត់',
+    name: 'Staff Tip Advance Payout',
     category: 'Petty Cash & Tip Advance',
     iconName: 'DollarSign',
     currentStock: 1000,
@@ -522,8 +488,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'petty-cash-emergency',
-    nameEn: 'Petty Cash - Urgent Operational Expense',
-    nameKh: 'សាច់ប្រាក់បម្រុងបន្ទាន់ / ជួសជុល',
+    name: 'Petty Cash - Urgent Operational Expense',
     category: 'Petty Cash & Tip Advance',
     iconName: 'DollarSign',
     currentStock: 500,
@@ -536,8 +501,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'register-change-coins',
-    nameEn: 'Small Change / Coins for Cashier Register',
-    nameKh: 'ប្រាក់អាប់ / ប្រាក់រាយសម្រាប់បេឡា',
+    name: 'Small Change / Coins for Cashier Register',
     category: 'Petty Cash & Tip Advance',
     iconName: 'DollarSign',
     currentStock: 200,
@@ -550,8 +514,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'gas-tank-refill',
-    nameEn: 'Cooking Gas Tank Refill 15kg',
-    nameKh: 'បញ្ចូលហ្គាសចម្អិនអាហារ ១៥គីឡូ',
+    name: 'Cooking Gas Tank Refill 15kg',
     category: 'Petty Cash & Tip Advance',
     iconName: 'CookingPot',
     currentStock: 2,
@@ -566,8 +529,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   // Kitchen Equipment & Tools
   {
     id: 'commercial-blender',
-    nameEn: 'Heavy Duty Commercial Bar Blender',
-    nameKh: 'ម៉ាស៊ីនក្រឡុកកម្លាំងខ្លាំងប្រចាំបារ',
+    name: 'Heavy Duty Commercial Bar Blender',
     category: 'Kitchen Equipment & Tools',
     iconName: 'Wrench',
     currentStock: 1,
@@ -580,8 +542,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'chef-knife-sharpened',
-    nameEn: 'Professional Chef Knife 8"',
-    nameKh: 'កាំបិតចុងភៅប្រណិត ៨អ៊ីញ',
+    name: 'Professional Chef Knife 8"',
     category: 'Kitchen Equipment & Tools',
     iconName: 'Utensils',
     currentStock: 3,
@@ -594,8 +555,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'cutting-board-color',
-    nameEn: 'Color-Coded Hygienic Cutting Board Set',
-    nameKh: 'ជ្រុះហាប់ពណ៌អនាម័យ',
+    name: 'Color-Coded Hygienic Cutting Board Set',
     category: 'Kitchen Equipment & Tools',
     iconName: 'LayoutGrid',
     currentStock: 4,
@@ -610,8 +570,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   // Cleaning & Sanitation
   {
     id: 'dishwashing-liquid-5l',
-    nameEn: 'Industrial Dishwashing Liquid 5L',
-    nameKh: 'សាប៊ូលាងចានធុងធំ ៥លីត្រ',
+    name: 'Industrial Dishwashing Liquid 5L',
     category: 'Cleaning & Sanitation',
     iconName: 'Sparkles',
     currentStock: 4,
@@ -624,8 +583,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'heavy-duty-trash-bags',
-    nameEn: 'Heavy Duty Black Trash Bags XXL',
-    nameKh: 'ថង់សម្រាមក្រាស់ធំ',
+    name: 'Heavy Duty Black Trash Bags XXL',
     category: 'Cleaning & Sanitation',
     iconName: 'Package',
     currentStock: 8,
@@ -638,8 +596,7 @@ export const DEFAULT_STUFF_CATALOG: IngredientItem[] = [
   },
   {
     id: 'microfiber-towels',
-    nameEn: 'Microfiber Kitchen Cleaning Towels',
-    nameKh: 'កន្សែងជូតសម្អាតផ្ទះបាយ',
+    name: 'Microfiber Kitchen Cleaning Towels',
     category: 'Cleaning & Sanitation',
     iconName: 'Sparkles',
     currentStock: 12,

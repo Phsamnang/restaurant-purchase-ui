@@ -770,13 +770,8 @@ export default function RequestDetailPage() {
                                   </div>
                                   <div className="space-y-0.5">
                                     <p className="font-semibold text-slate-900 dark:text-white text-[15px] leading-snug">
-                                      {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                      {item.name}
                                     </p>
-                                    {item.nameKh && (
-                                      <p className="text-[13px] text-slate-500 font-normal leading-snug">
-                                        {language === 'kh' ? item.nameEn : item.nameKh}
-                                      </p>
-                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -925,13 +920,8 @@ export default function RequestDetailPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="font-bold text-slate-900 dark:text-white text-base leading-snug break-words">
-                                  {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                  {item.name}
                                 </p>
-                                {item.nameKh && (
-                                  <p className="text-xs text-slate-500 font-normal leading-snug break-words mt-0.5">
-                                    {language === 'kh' ? item.nameEn : item.nameKh}
-                                  </p>
-                                )}
                                 <span className="inline-block mt-1.5 px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] rounded font-medium">
                                   {item.category || 'General Procurement'}
                                 </span>
@@ -1106,7 +1096,7 @@ export default function RequestDetailPage() {
                               <div>
                                 <div className="flex items-center gap-2">
                                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-                                    {language === 'kh' && item.nameKh ? item.nameKh : item.nameEn}
+                                    {item.name}
                                   </h4>
                                   {data.isVerified && (
                                     <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
@@ -1116,7 +1106,6 @@ export default function RequestDetailPage() {
                                     </span>
                                   )}
                                 </div>
-                                {item.nameKh && <p className="text-xs text-slate-500 font-normal">{language === 'kh' ? item.nameEn : item.nameKh}</p>}
                               </div>
                             </div>
 

@@ -61,8 +61,8 @@ export function IngredientList({
            item.id.toLowerCase().includes('tip') ||
            item.id.toLowerCase().includes('cash') ||
            item.id.toLowerCase().includes('money') ||
-           item.nameEn.toLowerCase().includes('cash') ||
-           item.nameEn.toLowerCase().includes('tip');
+           item.name.toLowerCase().includes('cash') ||
+           item.name.toLowerCase().includes('tip');
   };
 
   const handleExpand = (item: IngredientItem, e: React.MouseEvent) => {
@@ -159,7 +159,7 @@ export function IngredientList({
         {items.map((item) => {
           const inBasket = orderItems[item.id];
           const isExpanded = expandedItemId === item.id;
-          const mainEn = item.nameEn;
+          const mainEn = item.name;
           const cashItem = isCashItem(item);
 
           return (

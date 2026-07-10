@@ -92,7 +92,7 @@ function CategoryBarContent({
                       Filtering Category
                     </span>
                     <span className="font-bold text-sm leading-tight truncate">
-                      {language === 'kh' ? activeCatObj.nameKh : activeCatObj.nameEn}
+                      {activeCatObj.name}
                     </span>
                   </div>
                 </div>
@@ -151,7 +151,7 @@ function CategoryBarContent({
                         <span className={`font-bold text-xs leading-tight tracking-tight block ${
                           isSelected ? 'text-white' : 'text-slate-900'
                         }`}>
-                          {language === 'kh' ? (cat.nameKh || cat.nameEn) : cat.nameEn}
+                          {cat.name}
                         </span>
                       </div>
                     </button>
@@ -200,7 +200,7 @@ function CategoryBarContent({
                     <span className={`font-bold text-xs sm:text-sm tracking-tight ${
                       isSelected ? 'text-primary-foreground' : 'text-slate-900'
                     }`}>
-                      {language === 'kh' ? (cat.nameKh || cat.nameEn) : cat.nameEn}
+                      {cat.name}
                     </span>
 
                     {/* Visual Accents: Compact Numeric Badge on Right */}

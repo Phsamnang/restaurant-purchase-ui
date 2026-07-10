@@ -76,8 +76,8 @@ export default function NewMarketOrderPage() {
 
   const activeCatalog = useMemo(() => {
     const filteredCustom = customItems.filter(i => 
-      !i.nameEn.toLowerCase().includes('fff') &&
-      !i.nameEn.toLowerCase().includes('gggg') &&
+      !i.name.toLowerCase().includes('fff') &&
+      !i.name.toLowerCase().includes('gggg') &&
       !i.id.toLowerCase().includes('fff') &&
       !i.id.toLowerCase().includes('gggg')
     );
@@ -122,8 +122,7 @@ export default function NewMarketOrderPage() {
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
 
   // Custom Item Form State
-  const [customNameEn, setCustomNameEn] = useState('');
-  const [customNameKh, setCustomNameKh] = useState('');
+  const [customName, setCustomName] = useState('');
   const [customCategory, setCustomCategory] = useState<string>('Meat & Poultry');
   const [customUnit, setCustomUnit] = useState('kg');
   const [customPrice, setCustomPrice] = useState<number>(0);
@@ -161,11 +160,10 @@ export default function NewMarketOrderPage() {
       if (!searchQuery.trim()) return true;
 
       const query = searchQuery.toLowerCase().trim();
-      const matchEn = item.nameEn.toLowerCase().includes(query);
-      const matchKh = item.nameKh ? item.nameKh.toLowerCase().includes(query) : false;
+      const matchName = item.name.toLowerCase().includes(query);
       const matchCat = item.category.toLowerCase().includes(query);
 
-      return matchEn || matchKh || matchCat;
+      return matchName || matchCat;
     });
   }, [activeCatalog, selectedCategory, searchQuery]);
 
@@ -201,8 +199,7 @@ export default function NewMarketOrderPage() {
     
     const newIngredient: IngredientItem = {
       id: newId,
-      nameEn: customNameEn.trim(),
-      nameKh: customNameKh.trim() || customNameEn.trim(),
+      name: customName.trim(),
       category: customCategory,
       defaultUnit: isCashCategory ? currency : customUnit,
       defaultPrice: Number(customPrice) || 0,
@@ -269,8 +266,7 @@ export default function NewMarketOrderPage() {
         notes: `Money Request Reason: ${moneyReason.trim()} (${moneyPurpose})`,
         items: [{
           id: 'item-cash-1',
-          nameEn: moneyPurpose,
-          nameKh: moneyPurpose,
+          name: moneyPurpose,
           unit: moneyCurrency,
           ordered: 1,
           icon: 'banknote',
@@ -289,8 +285,7 @@ export default function NewMarketOrderPage() {
       } else {
         const fakeIngredient: IngredientItem = {
           id: `CASH-${Date.now().toString().slice(-4)}`,
-          nameEn: `${moneyPurpose} (${moneyCurrency} ${moneyAmount})`,
-          nameKh: moneyPurpose,
+          name: `${moneyPurpose} (${moneyCurrency} ${moneyAmount})`,
           category: 'Petty Cash & Tip Advance',
           defaultUnit: moneyCurrency,
           defaultPrice: Number(moneyAmount),
@@ -325,8 +320,8 @@ export default function NewMarketOrderPage() {
     return item.ingredient.category === 'Petty Cash & Tip Advance' ||
            item.ingredient.id.toLowerCase().includes('tip') ||
            item.ingredient.id.toLowerCase().includes('cash') ||
-           item.ingredient.nameEn.toLowerCase().includes('cash') ||
-           item.ingredient.nameEn.toLowerCase().includes('tip');
+           item.ingredient.name.toLowerCase().includes('cash') ||
+           item.ingredient.name.toLowerCase().includes('tip');
   };
 
   const itemsList = Object.values(orderItems);
@@ -370,8 +365,7 @@ export default function NewMarketOrderPage() {
         notes: `Requisition submitted via ${roleLabel} workflow (${itemsList.length} items). Target Delivery: ${deliveryDate}, Priority: ${priority}, Requested from: ${targetLabel}.`,
         items: itemsList.map((item, idx) => ({
           id: `item-${idx + 1}`,
-          nameEn: item.ingredient.nameEn,
-          nameKh: item.ingredient.nameKh || item.ingredient.nameEn,
+          name: item.ingredient.name,
           unit: item.unit,
           ordered: isCashItem(item) ? 1 : item.quantity,
           icon: item.ingredient.iconName,
@@ -732,8 +726,8 @@ export default function NewMarketOrderPage() {
               <input
                 type="text"
                 required
-                value={customNameEn}
-                onChange={(e) => setCustomNameEn(e.target.value)}
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
                 placeholder="e.g. Premium Truffle Oil or Tip Advance"
                 className="w-full h-12 px-4 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:outline-none focus:border-slate-800"
               />
@@ -750,7 +744,7 @@ export default function NewMarketOrderPage() {
                   <SelectContent className="z-[70]">
                     {activeCategories.filter(c => c.id !== 'all').map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
-                        {language === 'kh' ? (cat.nameKh || cat.nameEn) : cat.nameEn}
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1006,7 +1000,7 @@ export default function NewMarketOrderPage() {
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="font-bold text-sm text-slate-900 leading-tight">
-                          {language === 'kh' ? (item.ingredient.nameKh || item.ingredient.nameEn) : item.ingredient.nameEn}
+                          {item.ingredient.name}
                         </div>
                         <span className="text-xs font-medium text-slate-500 block mt-0.5">
                           {itemIsCash ? (

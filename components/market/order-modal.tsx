@@ -52,8 +52,8 @@ export function OrderModal({
            ingredient.id.toLowerCase().includes('cash') ||
            ingredient.id.toLowerCase().includes('money') ||
            ingredient.id.toLowerCase().includes('reimburse') ||
-           ingredient.nameEn.toLowerCase().includes('cash') ||
-           ingredient.nameEn.toLowerCase().includes('tip');
+           ingredient.name.toLowerCase().includes('cash') ||
+           ingredient.name.toLowerCase().includes('tip');
   }, [ingredient]);
 
   // Sync state when modal opens or ingredient changes
@@ -166,8 +166,8 @@ export function OrderModal({
   };
 
   const isEditing = !!initialOrderItem;
-  const mainName = language === 'kh' ? (ingredient.nameKh || ingredient.nameEn) : ingredient.nameEn;
-  const subName = language === 'kh' ? ingredient.nameEn : ingredient.nameKh;
+  const mainName = ingredient.name;
+  const subName = '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">

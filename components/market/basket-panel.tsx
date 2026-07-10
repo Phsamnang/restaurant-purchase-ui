@@ -109,14 +109,13 @@ export function BasketPanel({
           </div>
         ) : (
           itemsList.map((item) => {
-            const mainName = language === 'kh' ? (item.ingredient.nameKh || item.ingredient.nameEn) : item.ingredient.nameEn;
-            const subName = language === 'kh' ? item.ingredient.nameEn : item.ingredient.nameKh;
+            const mainName = item.ingredient.name;
             const isItemMoney = item.ingredient.category === 'Petty Cash & Tip Advance' ||
                                 item.ingredient.id.includes('tip') ||
                                 item.ingredient.id.includes('cash') ||
                                 item.ingredient.id.includes('money') ||
-                                item.ingredient.nameEn.toLowerCase().includes('cash') ||
-                                item.ingredient.nameEn.toLowerCase().includes('tip');
+                                item.ingredient.name.toLowerCase().includes('cash') ||
+                                item.ingredient.name.toLowerCase().includes('tip');
 
             return (
               <div 
