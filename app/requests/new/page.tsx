@@ -1061,5 +1061,5 @@ export default function NewMarketOrderPage() {
         </div>
       </Modal>
     </AppLayout>
-  );
+  );​
 }
