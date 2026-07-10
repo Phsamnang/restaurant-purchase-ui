@@ -24,6 +24,7 @@ export interface OrderItem {
   totalCost: number;
   supplier?: string;
   notes?: string;
+  supplierNotes?: string;
 }
 
 export interface CategoryItem {

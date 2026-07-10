@@ -44,7 +44,8 @@ import {
   ShoppingCart,
   X,
   ArrowRightLeft,
-  RefreshCw
+  RefreshCw,
+  Briefcase
 } from 'lucide-react';
 
 // ── Portal: mounts children directly on document.body so @media print can isolate them
@@ -312,7 +313,7 @@ export default function RequestDetailPage() {
         ...item,
         unit: rData.unit || item.unit,
         received: rData.received,
-        actualPrice: rData.actualPrice !== undefined ? rData.actualPrice : item.actualPrice,
+        actualPrice: rData.actualPrice !== undefined && rData.actualPrice !== '' ? Number(rData.actualPrice) : item.actualPrice,
         discrepancyReason: !rData.isCorrect ? 'Discrepancy flagged during check-in' : undefined
       };
     });
@@ -826,7 +827,7 @@ export default function RequestDetailPage() {
                                       onChange={(e) => handleUpdateActualPrice(item.id, e.target.value)}
                                       className="w-20 h-7 px-1.5 bg-white dark:bg-slate-900 border border-emerald-500 dark:border-emerald-600 rounded-lg font-extrabold text-sm text-emerald-950 dark:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-right tabular-nums shadow-inner"
                                     />
-                                    {(item.actualPrice !== undefined ? item.actualPrice !== '' && item.actualPrice !== null : item.estimatedPrice !== undefined) && (
+                                    {(item.actualPrice !== undefined ? (item.actualPrice as any) !== '' && item.actualPrice !== null : item.estimatedPrice !== undefined) && (
                                       <button
                                         type="button"
                                         onClick={() => handleClearActualPrice(item.id)}
@@ -840,7 +841,7 @@ export default function RequestDetailPage() {
                                       /{item.unit?.split('(')[0].trim() || 'unit'}
                                     </span>
                                   </div>
-                                ) : item.actualPrice !== undefined && item.actualPrice !== '' && item.actualPrice !== 0 ? (
+                                ) : item.actualPrice !== undefined && (item.actualPrice as any) !== '' && item.actualPrice !== 0 ? (
                                   <div className="text-right font-extrabold text-sm text-[#0A8F4D] dark:text-emerald-400">
                                     {(item.actualPriceCurrency || order.currency) === 'KHR'
                                       ? `${Math.round(Number(item.actualPrice) * (item.received ?? item.ordered)).toLocaleString()} ៛`
@@ -1008,7 +1009,7 @@ export default function RequestDetailPage() {
                                   onChange={(e) => handleUpdateActualPrice(item.id, e.target.value)}
                                   className="w-20 font-extrabold text-sm text-emerald-950 dark:text-white text-right bg-transparent focus:outline-none tabular-nums"
                                 />
-                                {(item.actualPrice !== undefined ? item.actualPrice !== '' && item.actualPrice !== null : item.estimatedPrice !== undefined) && (
+                                {(item.actualPrice !== undefined ? (item.actualPrice as any) !== '' && item.actualPrice !== null : item.estimatedPrice !== undefined) && (
                                   <button
                                     type="button"
                                     onClick={() => handleClearActualPrice(item.id)}
@@ -1020,7 +1021,7 @@ export default function RequestDetailPage() {
                                 )}
                               </div>
                             </div>
-                          ) : item.actualPrice !== undefined && item.actualPrice !== '' && item.actualPrice !== 0 && (
+                          ) : item.actualPrice !== undefined && (item.actualPrice as any) !== '' && item.actualPrice !== 0 && (
                             <div className="mt-2.5 flex items-center justify-between text-xs font-bold bg-emerald-50/60 dark:bg-emerald-950/20 px-3 py-2 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300">
                               <span>{language === 'kh' ? 'តម្លៃជាក់ស្តែង/ឯកតា:' : 'Actual Price/Unit:'}</span>
                               <span>{(item.actualPriceCurrency || order.currency) === 'KHR' ? `${Math.round(Number(item.actualPrice)).toLocaleString()} ៛` : `$${Number(item.actualPrice).toFixed(2)}`}</span>

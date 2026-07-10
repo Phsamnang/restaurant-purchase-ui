@@ -43,19 +43,20 @@ export function BasketPanel({
            item.ingredient.nameEn.toLowerCase().includes('tip');
   };
 
-  const estimatedTotalCost = itemsList.reduce((acc, curr) => {
-    if (isCashItem(curr)) {
-      if (currency === 'KHR') {
-        return acc + (curr.unit === 'KHR' ? curr.totalCost : curr.totalCost * 4000);
-      } else {
-        return acc + (curr.unit === 'KHR' ? curr.totalCost / 4000 : curr.totalCost);
-      }
-    } else {
-      return acc + (currency === 'KHR' ? curr.totalCost * 4000 : curr.totalCost);
-    }
+  const usdSubtotal = itemsList.reduce((acc, curr) => {
+    return curr.unit !== 'KHR' ? acc + (curr.totalCost || 0) : acc;
   }, 0);
 
-  const formatMoney = (val: number) => currency === 'KHR' ? `${(val * 4000).toLocaleString()} ៛` : `$${val.toFixed(2)}`;
+  const khrSubtotal = itemsList.reduce((acc, curr) => {
+    return curr.unit === 'KHR' ? acc + (curr.totalCost || 0) : acc;
+  }, 0);
+
+  const formatItemMoney = (item: any, val: number) => {
+    if (item.unit === 'KHR') {
+      return `${Math.round(val).toLocaleString()} ៛`;
+    }
+    return `$${val.toFixed(2)}`;
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full max-h-[calc(100vh-6.5rem)] sticky top-24 transition-all">
@@ -166,11 +167,11 @@ export function BasketPanel({
                           </span>
                           <span className="text-slate-400 font-medium">@</span>
                           <span className="text-slate-600 font-bold">
-                            {formatMoney(item.pricePerUnit)}
+                            {formatItemMoney(item, item.pricePerUnit)}
                           </span>
                           <span className="text-slate-300 font-medium">=</span>
                           <span className="text-slate-900 font-black">
-                            {formatMoney(item.totalCost)}
+                            {formatItemMoney(item, item.totalCost)}
                           </span>
                         </div>
 
@@ -212,21 +213,27 @@ export function BasketPanel({
       {/* Panel Bottom Summary & Checkout CTA */}
       <div className="bg-slate-50 p-4 sm:p-5 border-t border-slate-200 space-y-4 flex-shrink-0">
         {/* Cost Summary Box */}
-        <div className="rounded-xl bg-white p-4 border border-slate-200 shadow-2xs space-y-2">
+        <div className="rounded-xl bg-white p-4 border border-slate-200 shadow-2xs space-y-2.5">
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
             <span>{t('basket.estCost')}</span>
-            <span className="bg-slate-100 px-2 py-0.5 rounded-full text-[11px] font-bold text-slate-700">
-              {totalItemsCount} {t('basket.items')}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 inline-flex items-center gap-1.5 whitespace-nowrap">
-              <span>{currency === 'KHR' ? `${Math.round(estimatedTotalCost).toLocaleString()}` : `$${estimatedTotalCost.toFixed(2)}`}</span>
-              {currency === 'KHR' && <span>៛</span>}
+            <div className="flex items-center gap-2">
+              <span className="bg-slate-100 px-2 py-0.5 rounded-full text-[11px] font-bold text-slate-700">
+                {totalItemsCount} {t('basket.items')}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                • {totalUnits} {t('basket.units')}
+              </span>
             </div>
-            <span className="text-xs font-semibold text-slate-500">
-              {totalUnits} {t('basket.units')}
-            </span>
+          </div>
+          <div className="pt-1 border-t border-slate-100 space-y-1.5">
+            <div className="flex items-center justify-between text-sm sm:text-base font-black text-slate-900">
+              <span className="text-xs text-slate-500 uppercase">USD Subtotal</span>
+              <span className="text-emerald-700 font-black tabular-nums">${usdSubtotal.toFixed(2)} USD</span>
+            </div>
+            <div className="flex items-center justify-between text-sm sm:text-base font-black text-slate-900">
+              <span className="text-xs text-slate-500 uppercase">KHR Subtotal</span>
+              <span className="text-amber-700 font-black tabular-nums">{Math.round(khrSubtotal).toLocaleString()} ៛ KHR</span>
+            </div>
           </div>
           <p className="font-kantumruy text-[11px] text-slate-400 pt-1 border-t border-slate-100 font-light">
             {t('basket.estCostSub')}

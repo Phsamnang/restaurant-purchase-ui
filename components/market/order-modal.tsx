@@ -62,7 +62,7 @@ export function OrderModal({
       if (initialOrderItem) {
         if (isCashRequest) {
           setQuantity(1);
-          setUnit(initialOrderItem.unit === 'USD' ? 'USD' : 'KHR');
+          setUnit(initialOrderItem.unit === 'KHR' ? 'KHR' : 'USD');
           setPricePerUnit(initialOrderItem.totalCost || initialOrderItem.pricePerUnit || 0);
           setSupplier(initialOrderItem.supplier || 'Staff Member / Beneficiary');
           setNotes(initialOrderItem.notes || '');
@@ -76,7 +76,7 @@ export function OrderModal({
       } else {
         if (isCashRequest) {
           setQuantity(1);
-          setUnit(ingredient.defaultUnit === 'USD' ? 'USD' : 'KHR');
+          setUnit(ingredient.defaultUnit === 'KHR' ? 'KHR' : 'USD');
           setPricePerUnit(ingredient.defaultPrice || 0);
           setSupplier('Staff Member / Beneficiary');
           setNotes('');

@@ -397,6 +397,7 @@ export default function FinancePage() {
           <div className="divide-y divide-border border-t border-border mt-4 pt-2">
             {filteredTransactions.length === 0 ? (
               <EmptyState 
+                icon={<FileText className="w-8 h-8 text-muted-foreground" />}
                 title={language === 'en' ? 'No transactions found' : 'មិនមានទិន្នន័យប្រតិបត្តិការទេ'}
                 description={language === 'en' ? 'Try adjusting your search query or filter tab, or record a new transaction above.' : 'សូមសាកល្បងស្វែងរកម្តងទៀត ឬកត់ត្រាចំណូល/ចំណាយថ្មីនៅខាងលើ។'}
               />

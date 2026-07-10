@@ -18,7 +18,7 @@ import {
 } from '@/types/market';
 import { getOrders, saveOrder, OrderRequest } from '@/lib/orders';
 import { CategoryBar } from '@/components/market/category-bar';
-import { IngredientList } from '@/components/market/ingredient-list';
+import { IngredientList, renderIngredientIcon } from '@/components/market/ingredient-list';
 import { BasketPanel } from '@/components/market/basket-panel';
 import { OrderModal } from '@/components/market/order-modal';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -329,32 +329,29 @@ export default function NewMarketOrderPage() {
            item.ingredient.nameEn.toLowerCase().includes('tip');
   };
 
-  const calculateTotalCostInCurrency = (items: OrderItem[], targetCurrency: 'KHR' | 'USD') => {
-    return items.reduce((sum, item) => {
-      if (isCashItem(item)) {
-        if (targetCurrency === 'KHR') {
-          return sum + (item.unit === 'KHR' ? item.totalCost : item.totalCost * 4000);
-        } else {
-          return sum + (item.unit === 'KHR' ? item.totalCost / 4000 : item.totalCost);
-        }
-      } else {
-        return sum + (targetCurrency === 'KHR' ? item.totalCost * 4000 : item.totalCost);
-      }
-    }, 0);
-  };
+  const itemsList = Object.values(orderItems);
+  const totalItemCount = itemsList.length;
+  const totalUnitsCount = itemsList.reduce((acc, curr) => acc + (isCashItem(curr) ? 1 : curr.quantity), 0);
+  const usdSubtotal = useMemo(() => itemsList.reduce((acc, curr) => curr.unit !== 'KHR' ? acc + (curr.totalCost || 0) : acc, 0), [itemsList]);
+  const khrSubtotal = useMemo(() => itemsList.reduce((acc, curr) => curr.unit === 'KHR' ? acc + (curr.totalCost || 0) : acc, 0), [itemsList]);
 
   // Direct Submit from Basket Panel
   const handleSubmitOrder = () => {
-    const itemsList = Object.values(orderItems);
     if (itemsList.length === 0 || !user) return;
 
     setSubmitting(true);
 
     try {
-      const finalTotalCost = calculateTotalCostInCurrency(itemsList, currency);
-      const totalStr = currency === 'KHR'
-        ? `${Math.round(finalTotalCost).toLocaleString()} ៛`
-        : `$${finalTotalCost.toFixed(2)}`;
+      const usdSub = itemsList.reduce((acc, curr) => curr.unit !== 'KHR' ? acc + (curr.totalCost || 0) : acc, 0);
+      const khrSub = itemsList.reduce((acc, curr) => curr.unit === 'KHR' ? acc + (curr.totalCost || 0) : acc, 0);
+      let totalStr = '';
+      if (usdSub > 0 && khrSub > 0) {
+        totalStr = `$${usdSub.toFixed(2)} USD + ${Math.round(khrSub).toLocaleString()} ៛ KHR`;
+      } else if (khrSub > 0) {
+        totalStr = `${Math.round(khrSub).toLocaleString()} ៛ KHR`;
+      } else {
+        totalStr = `$${usdSub.toFixed(2)} USD`;
+      }
       
       const hasCashItems = itemsList.some(isCashItem);
       const roleLabel = requesterRole === 'manager' ? 'Manager' : (requesterRole === 'staff' ? 'Kitchen Staff' : 'Service & FOH');
@@ -393,11 +390,6 @@ export default function NewMarketOrderPage() {
     }
   };
 
-  const itemsList = Object.values(orderItems);
-  const totalItemCount = itemsList.length;
-  const totalUnitsCount = itemsList.reduce((acc, curr) => acc + (isCashItem(curr) ? 1 : curr.quantity), 0);
-  const estimatedTotalCost = useMemo(() => calculateTotalCostInCurrency(itemsList, currency), [itemsList, currency]);
-
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-500 font-bold">
@@ -433,7 +425,7 @@ export default function NewMarketOrderPage() {
               <Clock className="w-4 h-4 text-primary" />
               <span>Priority</span>
             </label>
-            <Select value={priority} onValueChange={(val: 'normal' | 'urgent') => setPriority(val)}>
+            <Select value={priority} onValueChange={(val: any) => val && setPriority(val)}>
               <SelectTrigger className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary shadow-none">
                 <SelectValue />
               </SelectTrigger>
@@ -448,7 +440,7 @@ export default function NewMarketOrderPage() {
               <UserCheck className="w-4 h-4 text-primary" />
               <span>Request From (Target)</span>
             </label>
-            <Select value={requestedFrom} onValueChange={(val: 'manager' | 'purchaser' | 'accounting') => setRequestedFrom(val)}>
+            <Select value={requestedFrom} onValueChange={(val: any) => val && setRequestedFrom(val)}>
               <SelectTrigger className="w-full h-11 px-3 rounded-xl border border-slate-300 bg-white font-bold text-sm text-slate-800 focus:outline-none focus:border-primary shadow-none">
                 <SelectValue />
               </SelectTrigger>
@@ -681,9 +673,9 @@ export default function NewMarketOrderPage() {
             <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">
               {totalItemCount === 0 ? t('basket.listEmpty') : `${totalItemCount} ${t('basket.items')}`}
             </span>
-            <div className="text-lg font-black text-white truncate inline-flex items-center gap-1">
-              <span>{currency === 'KHR' ? `${Math.round(estimatedTotalCost).toLocaleString()}` : `$${estimatedTotalCost.toFixed(2)}`}</span>
-              {currency === 'KHR' && <span>៛</span>}
+            <div className="text-sm font-black text-white flex flex-col leading-tight mt-0.5">
+              <span className="text-emerald-400 truncate">${usdSubtotal.toFixed(2)} USD</span>
+              <span className="text-amber-400 truncate">{Math.round(khrSubtotal).toLocaleString()} ៛ KHR</span>
             </div>
           </div>
         </div>
@@ -751,7 +743,7 @@ export default function NewMarketOrderPage() {
                 <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
                   Category <span className="text-red-500">*</span>
                 </label>
-                <Select value={customCategory} onValueChange={setCustomCategory}>
+                <Select value={customCategory} onValueChange={(val: any) => val && setCustomCategory(val)}>
                   <SelectTrigger className="w-full h-12 px-3.5 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:border-slate-800 shadow-none z-50">
                     <SelectValue />
                   </SelectTrigger>
@@ -803,9 +795,11 @@ export default function NewMarketOrderPage() {
         isOpen={showMoneyModal}
         onClose={() => setShowMoneyModal(false)}
         title="Request Money / Cash Advance"
-        subtitle="Submit a cash advance, tip payout, or petty cash request with a clear justification."
       >
         <div className="space-y-5 pt-2">
+          <p className="text-xs text-slate-500 font-medium leading-relaxed -mt-1">
+            Submit a cash advance, tip payout, or petty cash request with a clear justification.
+          </p>
           <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
             <Banknote className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-900 leading-relaxed font-medium">
@@ -817,7 +811,7 @@ export default function NewMarketOrderPage() {
             <label className="block mb-1.5 text-xs font-bold uppercase text-slate-700 tracking-wider">
               Purpose / Category <span className="text-red-500">*</span>
             </label>
-            <Select value={moneyPurpose} onValueChange={setMoneyPurpose}>
+            <Select value={moneyPurpose} onValueChange={(val: any) => val && setMoneyPurpose(val)}>
               <SelectTrigger className="w-full h-auto min-h-12 py-2.5 px-3.5 rounded-xl border border-slate-300 bg-white font-bold text-sm focus:border-slate-800 shadow-none z-50 text-left">
                 <SelectValue />
               </SelectTrigger>
@@ -960,21 +954,20 @@ export default function NewMarketOrderPage() {
         <div className="space-y-6 pt-2">
           {/* Top Summary Header Banner */}
           <div className="bg-slate-900 text-white p-5 rounded-2xl shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-slate-800">
-            <div>
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                {t('review.totalCost')}
+            <div className="space-y-1.5 min-w-0">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                {t('review.totalCost')} • {totalItemCount} {t('basket.items')} • {totalUnitsCount} {t('basket.units')}
               </span>
-              <div className="text-3xl font-black tracking-tight text-white flex items-center gap-2">
-                <span>
-                  {currency === 'KHR'
-                    ? `${Math.round(estimatedTotalCost).toLocaleString()} ៛`
-                    : `$${estimatedTotalCost.toFixed(2)}`}
-                </span>
-                {currency === 'USD' && <span className="text-base font-bold text-slate-400">USD</span>}
+              <div className="flex flex-wrap items-center gap-4 pt-1">
+                <div className="flex items-baseline gap-1.5 bg-slate-800/90 px-3.5 py-1.5 rounded-xl border border-slate-700">
+                  <span className="text-xs font-bold text-slate-400">USD:</span>
+                  <span className="text-2xl font-black text-emerald-400 tabular-nums">${usdSubtotal.toFixed(2)} USD</span>
+                </div>
+                <div className="flex items-baseline gap-1.5 bg-slate-800/90 px-3.5 py-1.5 rounded-xl border border-slate-700">
+                  <span className="text-xs font-bold text-slate-400">KHR:</span>
+                  <span className="text-2xl font-black text-amber-400 tabular-nums">{Math.round(khrSubtotal).toLocaleString()} ៛ KHR</span>
+                </div>
               </div>
-              <span className="text-[11px] font-medium text-slate-400">
-                {totalItemCount} {t('basket.items')} • {totalUnitsCount} {t('basket.units')}
-              </span>
             </div>
 
             <div className="flex flex-col gap-1.5 sm:items-end text-xs w-full sm:w-auto bg-slate-800/80 p-3 rounded-xl border border-slate-700/80">
