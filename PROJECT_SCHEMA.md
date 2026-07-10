@@ -110,6 +110,16 @@ ENUM('manager', 'purchaser', 'accounting')
 
 ---
 
+### Timestamp Convention
+
+Every `TIMESTAMP` column below (`created_at`, `updated_at`, `approved_at`, `sent_at`, `completed_at`, exchange rate `created_at`) is **stored in the database as UTC**, per standard practice.
+
+At the API boundary (see `PROJECT_API.md`), these are serialized as ISO-8601 **strings with an explicit `Asia/Phnom_Penh` (ICT, UTC+7) offset** — e.g. `2026-07-10T20:25:00.000+07:00` — never a bare `Z`/UTC string. This keeps every client (web, mobile, printed order sheets) reading a single unambiguous local time without doing timezone math of their own.
+
+Plain `DATE` columns (`date`, `delivery_date`, `rate_date`) are unaffected — they carry no time-of-day/timezone component and remain `YYYY-MM-DD` strings representing the restaurant's local calendar day.
+
+---
+
 ## 2. Tables
 
 ### 2.1 `restaurants`

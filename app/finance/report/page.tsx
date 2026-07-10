@@ -219,7 +219,7 @@ export default function FinanceReportPage() {
                   return (
                     <div key={cat.id} className="bg-secondary/50 rounded-xl p-3.5 border border-border/60">
                       <div className="flex items-center justify-between text-sm font-bold mb-1.5">
-                        <span className="text-foreground">{language === 'en' ? cat.nameEn : cat.nameKh}</span>
+                        <span className="text-foreground">{cat.name}</span>
                         <span className="text-emerald-600">{formatMoney(amount)} ({percentage.toFixed(0)}%)</span>
                       </div>
                       <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
@@ -250,7 +250,7 @@ export default function FinanceReportPage() {
                   return (
                     <div key={cat.id} className="bg-secondary/50 rounded-xl p-3.5 border border-border/60">
                       <div className="flex items-center justify-between text-sm font-bold mb-1.5">
-                        <span className="text-foreground">{language === 'en' ? cat.nameEn : cat.nameKh}</span>
+                        <span className="text-foreground">{cat.name}</span>
                         <span className="text-red-600">{formatMoney(amount)} ({percentage.toFixed(0)}%)</span>
                       </div>
                       <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">

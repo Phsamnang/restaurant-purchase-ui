@@ -27,21 +27,7 @@ export interface ProductTableProps {
   onUnitChange: (item: IngredientItem, unit: string) => void;
 }
 
-function splitBilingualName(fullName: string) {
-  if (fullName.includes('/')) {
-    const parts = fullName.split('/');
-    return { nameEn: parts[0].trim(), nameKh: parts[1].trim() };
-  }
-  if (fullName.includes('·')) {
-    const parts = fullName.split('·');
-    return { nameEn: parts[0].trim(), nameKh: parts[1].trim() };
-  }
-  if (fullName.includes('(')) {
-    const parts = fullName.split('(');
-    return { nameEn: parts[0].trim(), nameKh: parts[1].replace(')', '').trim() };
-  }
-  return { nameEn: fullName, nameKh: '' };
-}
+
 
 export function ProductTable({
   items,
@@ -74,17 +60,11 @@ export function ProductTable({
         header: () => <span className="font-extrabold text-xs tracking-wider uppercase text-slate-700">Ingredient Name / ឈ្មោះទំនិញ</span>,
         cell: ({ row }) => {
           const item = row.original;
-          const { nameEn, nameKh } = splitBilingualName(item.name || item.nameEn || '');
           return (
             <div className="flex flex-col py-0.5">
               <span className="font-bold text-sm text-slate-900 tracking-tight leading-snug">
-                {nameEn}
+                {item.name}
               </span>
-              {nameKh && (
-                <span className="font-kantumruy text-xs text-slate-600 leading-[1.65] mt-0.5 tracking-normal">
-                  {nameKh}
-                </span>
-              )}
             </div>
           );
         },

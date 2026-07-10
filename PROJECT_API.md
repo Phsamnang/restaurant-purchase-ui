@@ -95,6 +95,16 @@ Idempotency-Key: <uuid_v4>   # Required on all POST requests that create financi
 * `page` (Optional, default `1`)
 * `limit` (Optional, default `20`, max `100`)
 
+### Timestamp Format & Timezone
+All `*_at` fields (`created_at`, `updated_at`, `approved_at`, `sent_at`, `completed_at`, etc.) are serialized as **ISO-8601 strings in the `Asia/Phnom_Penh` timezone (ICT, UTC+7)**, with the explicit `+07:00` offset — never a bare `Z`/UTC suffix.
+
+```
+2026-07-10T20:25:00.000+07:00
+```
+
+* The database itself stores these columns as `TIMESTAMP` in UTC (standard practice for storage) — the `+07:00` conversion happens only at the API serialization boundary, so all clients (web, mobile, print sheets) render a single, unambiguous local time without doing their own timezone math.
+* Plain `date` fields (`date`, `delivery_date`, `rate_date`, `month`) are **not** timestamps — they carry no time-of-day or timezone component and remain plain `YYYY-MM-DD` (or `YYYY-MM` for `month`) strings, matching the restaurant's local calendar day regardless of when in the day the record was created.
+
 ---
 
 ## Table of Contents
@@ -553,8 +563,8 @@ Idempotency-Key: <uuid_v4>   # Required on all POST requests that create financi
     "id": 1001,
     "status": "approved",
     "approved_by": 1,
-    "approved_at": "2026-07-10T13:25:00.000Z",
-    "updated_at": "2026-07-10T13:25:00.000Z"
+    "approved_at": "2026-07-10T20:25:00.000+07:00",
+    "updated_at": "2026-07-10T20:25:00.000+07:00"
   }
 }
 ```
@@ -598,7 +608,7 @@ Idempotency-Key: <uuid_v4>   # Required on all POST requests that create financi
     "status": "completed",
     "total_usd": 37.50,
     "total_khr": 76000,
-    "completed_at": "2026-07-11T07:30:00.000Z",
+    "completed_at": "2026-07-11T14:30:00.000+07:00",
     "items": [
       {
         "id": 5001,
@@ -666,7 +676,7 @@ Idempotency-Key: <uuid_v4>   # Required on all POST requests that create financi
       "payment_method": "aba_pay",
       "receipt_ref": "REC-9920",
       "khqr_ref": null,
-      "created_at": "2026-07-08T22:15:00.000Z"
+      "created_at": "2026-07-09T05:15:00.000+07:00"
     }
   ],
   "meta": { "page": 1, "limit": 20, "total": 96, "total_pages": 5 }
@@ -713,7 +723,7 @@ Idempotency-Key: <uuid_v4>   # Required on all POST requests that create financi
     "payment_method": "bank_transfer",
     "receipt_ref": "ELEC-2026-07",
     "khqr_ref": null,
-    "created_at": "2026-07-10T13:27:00.000Z"
+    "created_at": "2026-07-10T20:27:00.000+07:00"
   }
 }
 ```
@@ -841,7 +851,7 @@ Idempotency-Key: <uuid_v4>   # Required on all POST requests that create financi
     "rate_date": "2026-07-10",
     "usd_to_khr": 4120.00,
     "restaurant_id": 12,
-    "created_at": "2026-07-10T13:30:00.000Z"
+    "created_at": "2026-07-10T20:30:00.000+07:00"
   }
 }
 ```

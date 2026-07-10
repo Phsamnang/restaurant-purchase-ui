@@ -192,7 +192,7 @@ export default function NewMarketOrderPage() {
   // Handle creating a Custom Market Item
   const handleCreateCustomItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customNameEn.trim()) return;
+    if (!customName.trim()) return;
 
     const isCashCategory = customCategory === 'Petty Cash & Tip Advance';
     const newId = `custom-${Date.now()}`;
@@ -223,13 +223,12 @@ export default function NewMarketOrderPage() {
       pricePerUnit: newIngredient.defaultPrice,
       totalCost: newIngredient.defaultPrice,
       supplier: isCashCategory ? `Staff Member (${requesterRole.toUpperCase()})` : 'Local Market Vendor',
-      notes: customNameKh.trim() || customNameEn.trim(),
+      notes: `Custom Item: ${customName.trim()}`,
     };
 
     handleInlineAdd(newOrderItem);
 
-    setCustomNameEn('');
-    setCustomNameKh('');
+    setCustomName('');
     setCustomPrice(0);
   };
 

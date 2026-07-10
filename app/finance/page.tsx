@@ -494,7 +494,7 @@ export default function FinancePage() {
             >
               {INCOME_CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {language === 'en' ? c.nameEn : c.nameKh}
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -622,7 +622,7 @@ export default function FinancePage() {
             >
               {OUTCOME_CATEGORIES.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {language === 'en' ? c.nameEn : c.nameKh}
+                  {c.name}
                 </option>
               ))}
             </select>

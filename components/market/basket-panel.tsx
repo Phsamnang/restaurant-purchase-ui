@@ -39,8 +39,8 @@ export function BasketPanel({
            item.ingredient.id.toLowerCase().includes('cash') ||
            item.ingredient.id.toLowerCase().includes('money') ||
            item.ingredient.id.toLowerCase().includes('reimburse') ||
-           item.ingredient.nameEn.toLowerCase().includes('cash') ||
-           item.ingredient.nameEn.toLowerCase().includes('tip');
+           item.ingredient.name.toLowerCase().includes('cash') ||
+           item.ingredient.name.toLowerCase().includes('tip');
   };
 
   const usdSubtotal = itemsList.reduce((acc, curr) => {

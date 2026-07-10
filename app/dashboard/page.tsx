@@ -193,8 +193,7 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2.5">
             {recentRequests.map((request) => {
-              const itemsSummaryEn = request.items.map((i) => i.nameEn).join(', ');
-              const itemsSummaryKh = request.items.map((i) => i.nameKh).join(', ');
+              const itemsSummary = request.items.map((i) => i.name).join(', ');
               return (
                 <Link key={request.id} href={`/requests/${request.id}`}>
                   <div className="bg-card border border-border rounded-xl p-4 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group">
@@ -206,8 +205,7 @@ export default function DashboardPage() {
                           </span>
                           <span className="text-xs text-muted-foreground">• {request.date}</span>
                         </div>
-                        <p className="font-semibold text-sm text-foreground truncate">{itemsSummaryEn}</p>
-                        <p className="text-xs text-primary font-medium truncate">{itemsSummaryKh}</p>
+                        <p className="font-semibold text-sm text-foreground truncate">{itemsSummary}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="font-bold text-sm text-foreground mb-1">{request.total}</p>

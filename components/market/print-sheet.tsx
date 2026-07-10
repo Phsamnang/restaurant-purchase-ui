@@ -137,8 +137,7 @@ export function PrintSheet({ orders: printOrders, currency }: { orders: OrderReq
                       <tr key={`${rowNum}-${item.id}`}>
                         <td className="ps-num">{rowNum}</td>
                         <td>
-                          <span className="ps-item-en">{item.nameEn}</span>
-                          <span className="ps-item-kh">{item.nameKh}</span>
+                          <span className="ps-item-en">{item.name}</span>
                         </td>
                         <td className="ps-qty">{item.ordered}</td>
                         <td className="ps-num">{item.unit.split('(')[0].trim()}</td>
@@ -188,8 +187,7 @@ export function PrintSheet({ orders: printOrders, currency }: { orders: OrderReq
                       <tr key={`${rowNum}-${item.id}`}>
                         <td className="ps-num">{rowNum}</td>
                         <td>
-                          <span className="ps-item-en">{item.nameEn}</span>
-                          <span className="ps-item-kh">{item.nameKh}</span>
+                          <span className="ps-item-en">{item.name}</span>
                         </td>
                         <td className="ps-qty">{item.ordered}</td>
                         <td className="ps-num">{item.unit.split('(')[0].trim()}</td>
