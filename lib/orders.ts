@@ -16,6 +16,7 @@ export interface OrderItemDetail {
   icon?: string;
   category?: string;
   estimatedPrice?: number;
+  estimatedPriceCurrency?: 'USD' | 'KHR';
   supplierNotes?: string;
   packingStatus?: 'packed' | 'pending' | 'flagged';
 }
@@ -31,8 +32,12 @@ export interface OrderRequest {
   approvedBy?: string;
   notes?: string;
   requestType?: 'glossary' | 'stuff' | 'mixed';
-  requesterRole?: 'manager' | 'staff' | 'service';
+  requesterRole?: 'manager' | 'staff' | 'service' | 'chef';
   requestedFrom?: 'manager' | 'purchaser' | 'accounting' | string;
+  priority?: 'normal' | 'urgent';
+  deliveryDate?: string;
+  totalUSD?: number;
+  totalKHR?: number;
 }
 
 const STORAGE_KEY = 'restaurant_orders_v2_erp';
